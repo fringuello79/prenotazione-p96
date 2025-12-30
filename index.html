@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prenotazioni Tecnam P96</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="version-info">rev0 - 30/12/2025</div>
+        <img src="logo.jpg" alt="Logo Aeroclub dei Marsi" id="aeroclub-logo">
+        <h1>Benvenuto all'Aeroclub dei Marsi</h1>
+        <p id="loading-message">Caricamento applicazione...</p>
+
+        <!-- Sezione Login/Registrazione -->
+        <div id="auth-container">
+            <h2>Accedi o Registrati</h2>
+
+            <input type="text" id="signup-name" placeholder="Nome (solo per la registrazione)" />
+            <input type="text" id="signup-surname" placeholder="Cognome (solo per la registrazione)" />
+
+            <input type="email" id="email" placeholder="Email" required />
+            <input type="password" id="password" placeholder="Password" required />
+            <button id="login-button">Accedi</button>
+            <button id="signup-button">Registrati</button>
+            <p id="auth-error-message" style="color: red;"></p>
+            <p><a href="#" id="reset-password-link">Hai dimenticato la password?</a></p>
+        </div>
+
+        <!-- Sezione App (visibile dopo il login) -->
+        <div id="app-content" style="display: none;">
+            <div class="user-info-bar">
+                <h2>Bentornato, <span id="user-display-name"></span>!</h2>
+                <button id="logout-button">Esci</button>
+            </div>
+
+            <hr>
+
+            <!-- Sezione Stato del Giorno -->
+            <div class="day-status">
+                <h3>Stato del Giorno:</h3>
+                <div class="date-navigation">
+                    <button id="prev-day-button">&lt; Giorno Prec.</button>
+                    <span id="display-date-full"></span>
+                    <button id="next-day-button">Giorno Succ. &gt;</button>
+                </div>
+                <p>Alba: <span id="sunrise-time">Caricamento...</span> | Tramonto: <span id="sunset-time">Caricamento...</span></p>
+                <p>Meteo: <span id="weather-info">Caricamento...</span></p>
+                <p>Density Altitude stimata: <span id="density-altitude">Caricamento...</span> ft</p>
+                <p class="disclaimer">(dato indicativo – verificare sempre prima del volo)</p>
+            </div>
+
+            <!-- ⭐ SEZIONE GRAFICO METEO E DA (AGGIUNTA) ⭐ -->
+            <div class="meteo-chart-section">
+                <h3>Grafico Meteo e Density Altitude (72h)</h3>
+                <canvas id="meteoChart" style="max-width: 900px; margin: 20px auto;"></canvas>
+            </div>
+
+            <hr>
+
+            <!-- Sezione Tabella Oraria delle Prenotazioni -->
+            <div class="schedule-section">
+                <h3>Tabella Prenotazioni</h3>
+                <div id="hourly-schedule">
+                    <p>Caricamento tabella oraria...</p>
+                </div>
+
+                <h4>Nuova Prenotazione</h4>
+                <div class="new-booking-form">
+                    <input type="time" id="start-time" value="09:00" required>
+                    <input type="time" id="end-time" value="10:00" required>
+                    <button id="add-booking-button">Prenota</button>
+                    <p id="booking-error-message" style="color: red;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-analytics-compat.js"></script>
+
+    <!-- Chart.js (necessario per il grafico) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Script personalizzato -->
+    <script src="script.js"></script>
+</body>
+</html>
