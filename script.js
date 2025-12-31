@@ -366,7 +366,7 @@ try {
 
             // Check if the response contains an error
             if (meteoData.error) {
-                throw new Error(meteoData.error.message || 'API Error');
+                throw new Error(`Weather API error: ${meteoData.error.message || 'Unknown error'}`);
             }
 
             // Validate required data exists
@@ -378,7 +378,9 @@ try {
                 throw new Error('Dati previsione meteo non disponibili');
             }
             
-            if (!meteoData.forecast.forecastday[0].hour) {
+            const forecastDay = meteoData.forecast.forecastday[0];
+            
+            if (!forecastDay.hour) {
                 throw new Error('Dati orari meteo non disponibili');
             }
 
@@ -400,7 +402,7 @@ try {
             densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
             // --- Grafico ---
-            const forecastHours = meteoData.forecast.forecastday[0].hour;
+            const forecastHours = forecastDay.hour;
             const hours = forecastHours.map(h => h.time.split(" ")[1]);
             const temps = forecastHours.map(h => h.temp_c);
             const pressures = forecastHours.map(h => h.pressure_mb);
