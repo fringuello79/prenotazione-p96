@@ -44,23 +44,23 @@ try {
     const addBookingButton = document.getElementById('add-booking-button');
     const bookingErrorMessage = document.getElementById('booking-error-message');
 
-    // Variabili globali per l'utente e il suo ruolo (accessibili anche dalla console)
+    // Variabili globali
     window.currentUser = null; 
     window.currentUserRole = null; 
     let currentDisplayDate = new Date();
     currentDisplayDate.setHours(0, 0, 0, 0);
 
     let bookingsSnapshotUnsubscribe = null;
-    // Variabili per alba e tramonto reali per la data visualizzata
+
+    // Alba/tramonto
     let currentDaySunrise = "00:00"; 
     let currentDaySunset = "23:59"; 
 
-    // Coordinate per Celano (AQ)
+    // Coordinate Celano
     const CELANO_LAT = 42.0667;
     const CELANO_LNG = 13.5500;
-// --- Variabili globali Meteo + DA --- let meteoHours = []; // timestamp orari let meteoTemp = []; // temperatura oraria let meteoPressure = []; // QNH orario let meteoDA = []; // Density Altitude oraria let meteoChart = null; // grafico Chart.js
 
-    // Funzione per formattare la data estesa
+    // Funzione per formattare la data
     const formatDateFull = (date) => {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         return date.toLocaleDateString('it-IT', options);
@@ -84,8 +84,8 @@ try {
         listenToBookings();
         loadWeatherData();
     });
-    
-    // --- Funzione per aggiungere prenotazione (helper) ---
+
+    // --- Funzione per aggiungere prenotazione ---
     const addBookingLogic = async (start, end) => {
         if (!window.currentUser) {
             bookingErrorMessage.textContent = "Devi essere loggato per prenotare.";
@@ -117,7 +117,7 @@ try {
             return;
         }
 
-        // --- VALIDAZIONE ALBA/TRAMONTO CON I DATI REALI ---
+        // Validazione alba/tramonto
         const sunrise = new Date(currentDisplayDate);
         const [srHour, srMinute] = currentDaySunrise.split(':').map(Number);
         sunrise.setHours(srHour, srMinute, 0, 0);
@@ -126,12 +126,10 @@ try {
         const [ssHour, ssMinute] = currentDaySunset.split(':').map(Number);
         sunset.setHours(ssHour, ssMinute, 0, 0);
 
-        // La prenotazione deve essere interamente all'interno del periodo di luce
         if (newBookingStart < sunrise || newBookingEnd > sunset) {
             bookingErrorMessage.textContent = `Non è possibile prenotare durante le ore di buio (Alba: ${currentDaySunrise}, Tramonto: ${currentDaySunset}).`;
             return;
         }
-        // --- FINE VALIDAZIONE ALBA/TRAMONTO ---
 
         if (currentDisplayDate.toDateString() === new Date().toDateString() && newBookingEnd < new Date()) {
             bookingErrorMessage.textContent = "Non è possibile prenotare orari già passati.";
@@ -160,9 +158,7 @@ try {
             const [bkEndHour, bkEndMinute] = booking.ora_fine.split(':').map(Number);
             existingEnd.setHours(bkEndHour, bkEndMinute, 0, 0);
 
-            if (
-                (newBookingStart < existingEnd && newBookingEnd > existingStart)
-            ) {
+            if (newBookingStart < existingEnd && newBookingEnd > existingStart) {
                 bookingErrorMessage.textContent = "Orario selezionato si sovrappone con una prenotazione esistente.";
                 return;
             }
@@ -174,7 +170,6 @@ try {
             bookingErrorMessage.textContent = "La durata massima di una prenotazione è di 3 ore.";
             return;
         }
-
 
         try {
             await db.collection('bookings').add({
@@ -188,26 +183,19 @@ try {
                 stato: 'prenotato',
                 timestamp_creazione: firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log("Prenotazione aggiunta con successo!");
+
             bookingErrorMessage.textContent = "";
-            // Resetta solo i campi del form se la prenotazione è avvenuta tramite form
             if (start === startTimeInput.value && end === endTimeInput.value) {
                 startTimeInput.value = "09:00";
                 endTimeInput.value = "10:00";
             }
         } catch (error) {
-            console.error("Errore nell'aggiungere la prenotazione:", error);
             bookingErrorMessage.textContent = "Errore durante la prenotazione: " + error.message;
         }
     };
-
-
     // --- Generazione Tabella Oraria ---
     const renderHourlySchedule = (allBookings) => {
         hourlyScheduleDiv.innerHTML = '';
-        const today = new Date();
-        const isCurrentDateToday = currentDisplayDate.toDateString() === today.toDateString();
-
 
         for (let hour = 0; hour < 24; hour++) {
             const hourBlock = document.createElement('div');
@@ -233,7 +221,7 @@ try {
                 const slotEnd = new Date(currentDisplayDate);
                 slotEnd.setHours(hour, parseInt(minute) + 29, 59, 999);
 
-                // --- VALIDAZIONE ORARI DI BUIO PER IL RENDER ---
+                // --- Validazione buio ---
                 const sunrise = new Date(currentDisplayDate);
                 const [srHour, srMinute] = currentDaySunrise.split(':').map(Number);
                 sunrise.setHours(srHour, srMinute, 0, 0);
@@ -246,10 +234,10 @@ try {
                     slot.classList.add('night');
                     slot.innerHTML = `<div class="slot-content">Buio</div>`;
                     hourBlock.appendChild(slot);
-                    return; // Passa allo slot successivo
+                    return;
                 }
-                // --- FINE VALIDAZIONE ORARI DI BUIO PER IL RENDER ---
 
+                // --- Prenotazioni ---
                 let bookedInfo = null;
                 let bookingIdForSlot = null;
                 let socioIdForSlot = null;
@@ -291,9 +279,9 @@ try {
                             const bId = slot.dataset.bookingId;
                             const bookedSocioId = slot.dataset.socioId;
 
-                            let confirmationMessage = `Vuoi annullare la prenotazione di ${bookedInfo} dalle ${slotTime} del ${formatDateFull(currentDisplayDate)}?`;
+                            let confirmationMessage = `Vuoi annullare la prenotazione di ${bookedInfo}?`;
                             if (window.currentUserRole === 'admin' && window.currentUser.uid !== bookedSocioId) {
-                                confirmationMessage = `Sei amministratore. Vuoi annullare la prenotazione di ${bookedInfo} (${slotTime})?`;
+                                confirmationMessage = `Sei amministratore. Vuoi annullare la prenotazione di ${bookedInfo}?`;
                             }
 
                             if (confirm(confirmationMessage)) {
@@ -301,21 +289,18 @@ try {
                                     await db.collection('bookings').doc(bId).delete();
                                     alert("Prenotazione annullata con successo!");
                                 } catch (error) {
-                                    console.error("Errore nell'annullare la prenotazione:", error);
-                                    alert("Errore nell'annullare la prenotazione: " + error.message + ". Assicurati di avere i permessi necessari (es. sei l'autore o un admin).");
+                                    alert("Errore nell'annullare la prenotazione: " + error.message);
                                 }
                             }
                         });
-                    } else {
-                        slot.style.cursor = 'default';
                     }
 
-                } else { // Slot Libero
+                } else {
                     slot.classList.add('free');
                     slot.innerHTML = `<div class="slot-content">Libero <span class="slot-time-indicator">(${slotTime})</span></div>`;
 
                     slot.style.cursor = 'pointer';
-                    slot.addEventListener('click', async () => { // Ora async per chiamare addBookingLogic
+                    slot.addEventListener('click', async () => {
                         if (!window.currentUser) {
                             alert("Devi essere loggato per prenotare.");
                             return;
@@ -327,166 +312,127 @@ try {
                         endDate.setHours(h, m + 30, 0, 0);
                         const clickedSlotEnd = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
-                        if (confirm(`Vuoi prenotare il Tecnam P96 per ${formatDateFull(currentDisplayDate)} dalle ${clickedSlotTime} alle ${clickedSlotEnd}?`)) {
-                            await addBookingLogic(clickedSlotTime, clickedSlotEnd); // Prenota direttamente
+                        if (confirm(`Vuoi prenotare dalle ${clickedSlotTime} alle ${clickedSlotEnd}?`)) {
+                            await addBookingLogic(clickedSlotTime, clickedSlotEnd);
                         }
                     });
                 }
+
                 hourBlock.appendChild(slot);
             });
+
             hourlyScheduleDiv.appendChild(hourBlock);
         }
     };
 
+    // --- METEO + DA (WeatherAPI) ---
+    let meteoChart = null;
 
- // --- METEO + DA 72h (Open-Meteo) ---
-const loadWeatherData = async () => {
-    const formattedDate = currentDisplayDate.toISOString().split('T')[0];
+    const loadWeatherData = async () => {
+        const formattedDate = currentDisplayDate.toISOString().split('T')[0];
 
-    sunriseTimeSpan.textContent = "Caricamento...";
-    sunsetTimeSpan.textContent = "Caricamento...";
-    weatherInfoSpan.textContent = "Caricamento...";
-    densityAltitudeSpan.textContent = "Caricamento...";
+        sunriseTimeSpan.textContent = "Caricamento...";
+        sunsetTimeSpan.textContent = "Caricamento...";
+        weatherInfoSpan.textContent = "Caricamento...";
+        densityAltitudeSpan.textContent = "Caricamento...";
 
-    // --- 1. Alba e tramonto ---
-    try {
-        const response = await fetch(`https://api.sunrise-sunset.org/json?lat=${CELANO_LAT}&lng=${CELANO_LNG}&date=${formattedDate}&formatted=0`);
-        const data = await response.json();
+        // --- Alba e tramonto ---
+        try {
+            const response = await fetch(`https://api.sunrise-sunset.org/json?lat=${CELANO_LAT}&lng=${CELANO_LNG}&date=${formattedDate}&formatted=0`);
+            const data = await response.json();
 
-        if (data.status === 'OK') {
-            const sunriseUTC = new Date(data.results.sunrise);
-            const sunsetUTC = new Date(data.results.sunset);
+            if (data.status === 'OK') {
+                const sunriseUTC = new Date(data.results.sunrise);
+                const sunsetUTC = new Date(data.results.sunset);
 
-            currentDaySunrise = sunriseUTC.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-            currentDaySunset = sunsetUTC.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                currentDaySunrise = sunriseUTC.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                currentDaySunset = sunsetUTC.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-            sunriseTimeSpan.textContent = currentDaySunrise;
-            sunsetTimeSpan.textContent = currentDaySunset;
-        } else {
+                sunriseTimeSpan.textContent = currentDaySunrise;
+                sunsetTimeSpan.textContent = currentDaySunset;
+            }
+        } catch (err) {
             sunriseTimeSpan.textContent = "N/D";
             sunsetTimeSpan.textContent = "N/D";
         }
-    } catch (err) {
-        sunriseTimeSpan.textContent = "N/D";
-        sunsetTimeSpan.textContent = "N/D";
-    }
 
-    // --- 2. Meteo attuale + 72h ---
-    try {
-        const meteoURL =
-            `https://api.open-meteo.com/v1/forecast?latitude=${CELANO_LAT}&longitude=${CELANO_LNG}` +
-            `&current=temperature_2m,wind_speed_10m,wind_direction_10m,pressure_msl` +
-            `&hourly=temperature_2m,pressure_msl` +
-            `&forecast_days=3&timezone=Europe/Rome`;
+        // --- METEO WeatherAPI ---
+        try {
+            const key = "560c2e928ac34d779ae64228253112";
+            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&days=1&aqi=no&alerts=no`;
 
-        const meteoResponse = await fetch(meteoURL);
-        const meteoData = await meteoResponse.json();
+            const res = await fetch(url);
+            const meteoData = await res.json();
 
-        // --- METEO ATTUALE ---
-        const temp = meteoData.current.temperature_2m;
-        const windSpeed = meteoData.current.wind_speed_10m;
-        const windDir = meteoData.current.wind_direction_10m;
-        const pressure = meteoData.current.pressure_msl;
+            const temp = meteoData.current.temp_c;
+            const windSpeed = meteoData.current.wind_kph / 1.852;
+            const windDir = meteoData.current.wind_degree;
+            const pressure = meteoData.current.pressure_mb;
 
-        weatherInfoSpan.textContent =
-            `${temp}°C, vento ${windSpeed} kt da ${degToCompass(windDir)}, QNH ${pressure} hPa`;
+            weatherInfoSpan.textContent =
+                `${temp}°C, vento ${windSpeed.toFixed(0)} kt da ${degToCompass(windDir)}, QNH ${pressure} hPa`;
 
-        // --- 3. Calcolo DA attuale ---
-        const elevationFt = 2820;
-        const PA = (1013 - pressure) * 30 + elevationFt;
-        const T_ISA = 15 - 2 * (elevationFt / 1000);
-        const DA = Math.round(PA + 120 * (temp - T_ISA));
+            // --- Density Altitude ---
+            const elevationFt = 2820;
+            const PA = (1013 - pressure) * 30 + elevationFt;
+            const T_ISA = 15 - 2 * (elevationFt / 1000);
+            const DA = Math.round(PA + 120 * (temp - T_ISA));
 
-        densityAltitudeSpan.textContent = `${DA} ft`;
+            densityAltitudeSpan.textContent = `${DA} ft`;
+            densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
-        if (DA > 3000) {
-            densityAltitudeSpan.style.color = "red";
-        } else {
-            densityAltitudeSpan.style.color = "inherit";
-        }
+            // --- Grafico ---
+            const hours = meteoData.forecast.forecastday[0].hour.map(h => h.time.split(" ")[1]);
+            const temps = meteoData.forecast.forecastday[0].hour.map(h => h.temp_c);
+            const pressures = meteoData.forecast.forecastday[0].hour.map(h => h.pressure_mb);
 
-        // --- 4. Previsioni orarie 72h ---
-        meteoHours = meteoData.hourly.time;
-        meteoTemp = meteoData.hourly.temperature_2m;
-        meteoPressure = meteoData.hourly.pressure_msl;
+            const canvas = document.getElementById('meteoChart');
+            const ctx = canvas.getContext('2d');
 
-        // Calcolo DA oraria
-        meteoDA = meteoTemp.map((t, i) => {
-            const qnh = meteoPressure[i];
-            const PAh = (1013 - qnh) * 30 + elevationFt;
-            const T_ISAh = 15 - 2 * (elevationFt / 1000);
-            return Math.round(PAh + 120 * (t - T_ISAh));
-        });
+            if (meteoChart) meteoChart.destroy();
 
-        // --- 5. Aggiorna grafico ---
-        updateMeteoChart();
-
-    } catch (err) {
-        console.error("Errore meteo:", err);
-        weatherInfoSpan.textContent = "Errore meteo";
-        densityAltitudeSpan.textContent = "N/D";
-    }
-
-    renderHourlySchedule([]);
-};
-
-// Prima chiamata
-loadWeatherData();
-
-// --- GRAFICO METEO + DA (Chart.js) ---
-function updateMeteoChart() {
-    const canvas = document.getElementById('meteoChart');
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-
-    if (meteoChart) {
-        meteoChart.destroy();
-    }
-
-    meteoChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: meteoHours,
-            datasets: [
-                {
-                    label: 'Temperatura (°C)',
-                    data: meteoTemp,
-                    borderColor: 'red',
-                    yAxisID: 'y1',
-                    tension: 0.2
+            meteoChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: hours,
+                    datasets: [
+                        {
+                            label: 'Temperatura (°C)',
+                            data: temps,
+                            borderColor: 'red',
+                            yAxisID: 'y1',
+                            tension: 0.2
+                        },
+                        {
+                            label: 'QNH (hPa)',
+                            data: pressures,
+                            borderColor: 'blue',
+                            yAxisID: 'y2',
+                            tension: 0.2
+                        }
+                    ]
                 },
-                {
-                    label: 'QNH (hPa)',
-                    data: meteoPressure,
-                    borderColor: 'blue',
-                    yAxisID: 'y2',
-                    tension: 0.2
-                },
-                {
-                    label: 'Density Altitude (ft)',
-                    data: meteoDA,
-                    borderColor: 'green',
-                    yAxisID: 'y3',
-                    tension: 0.2
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    stacked: false,
+                    scales: {
+                        y1: { type: 'linear', position: 'left' },
+                        y2: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
+                    }
                 }
-            ]
-        },
-        options: {
-            responsive: true,
-            interaction: { mode: 'index', intersect: false },
-            stacked: false,
-            scales: {
-                y1: { type: 'linear', position: 'left' },
-                y2: { type: 'linear', position: 'right' },
-                y3: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
-            }
+            });
+
+        } catch (err) {
+            weatherInfoSpan.textContent = "Errore meteo";
+            densityAltitudeSpan.textContent = "N/D";
         }
-    });
-}
 
+        renderHourlySchedule([]);
+    };
 
-    // Ascolta le modifiche alle prenotazioni in tempo reale per la data selezionata
+    loadWeatherData();
+    // --- Ascolta le prenotazioni in tempo reale ---
     const listenToBookings = () => {
         if (bookingsSnapshotUnsubscribe) {
             bookingsSnapshotUnsubscribe();
@@ -507,6 +453,7 @@ function updateMeteoChart() {
                 for (const doc of snapshot.docs) {
                     const booking = doc.data();
                     let socio_nome = 'Socio Sconosciuto';
+
                     if (booking.socio_id) {
                         try {
                             const userDoc = await db.collection('users').doc(booking.socio_id).get();
@@ -524,23 +471,22 @@ function updateMeteoChart() {
                             console.warn("Impossibile recuperare il nome del socio:", error);
                         }
                     }
+
                     bookings.push({ id: doc.id, socio_nome, ...booking });
                 }
+
                 renderHourlySchedule(bookings);
             }, (error) => {
-                console.error("Errore nel recuperare le prenotazioni:", error);
                 hourlyScheduleDiv.innerHTML = '<p style="color: red;">Errore nel caricamento delle prenotazioni.</p>';
             });
     };
 
-
-    // Gestione aggiunta nuova prenotazione tramite FORM (riusa addBookingLogic)
+    // --- Aggiunta prenotazione tramite form ---
     addBookingButton.addEventListener('click', async () => {
         await addBookingLogic(startTimeInput.value, endTimeInput.value);
     });
 
     // --- Gestione UI Authentication ---
-
     const updateUI = async (user) => {
         if (user) {
             window.currentUser = user; 
@@ -580,11 +526,14 @@ function updateMeteoChart() {
             emailInput.value = '';
             passwordInput.value = '';
             authErrorMessage.textContent = '';
+
             if (bookingsSnapshotUnsubscribe) {
                 bookingsSnapshotUnsubscribe();
             }
+
             renderHourlySchedule([]);
         }
+
         loadingMessage.style.display = 'none';
     };
 
@@ -592,24 +541,24 @@ function updateMeteoChart() {
         updateUI(user);
     });
 
+    // --- Login ---
     loginButton.addEventListener('click', async () => {
         const email = emailInput.value;
         const password = passwordInput.value;
         authErrorMessage.textContent = '';
 
         try {
-                await auth.signInWithEmailAndPassword(email, password);
-                console.log("Accesso effettuato con successo.");
+            await auth.signInWithEmailAndPassword(email, password);
         } catch (error) {
-                let message = "Errore di accesso.";
-                if (error.code === 'auth/wrong-password') message = "Password errata.";
-                else if (error.code === 'auth/user-not-found') message = "Utente non trovato.";
-                else if (error.code === 'auth/invalid-email') message = "Email non valida.";
-                authErrorMessage.textContent = message + " Codice: " + error.code;
-                console.error("Errore di accesso:", error);
+            let message = "Errore di accesso.";
+            if (error.code === 'auth/wrong-password') message = "Password errata.";
+            else if (error.code === 'auth/user-not-found') message = "Utente non trovato.";
+            else if (error.code === 'auth/invalid-email') message = "Email non valida.";
+            authErrorMessage.textContent = message + " Codice: " + error.code;
         }
     });
 
+    // --- Registrazione ---
     signupButton.addEventListener('click', async () => {
         const email = emailInput.value;
         const password = passwordInput.value;
@@ -618,13 +567,12 @@ function updateMeteoChart() {
         authErrorMessage.textContent = '';
 
         if (!nome || !cognome) {
-            authErrorMessage.textContent = "Nome e Cognome sono obbligatori per la registrazione.";
+            authErrorMessage.textContent = "Nome e Cognome sono obbligatori.";
             return;
         }
 
         try {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            console.log("Utente registrato con successo.");
 
             await db.collection('users').doc(userCredential.user.uid).set({
                 email: userCredential.user.email,
@@ -639,53 +587,52 @@ function updateMeteoChart() {
 
         } catch (error) {
             let message = "Errore durante la registrazione.";
-            if (error.code === 'auth/email-already-in-use') message = "Questa email è già in uso.";
-            else if (error.code === 'auth/weak-password') message = "La password deve essere di almeno 6 caratteri.";
+            if (error.code === 'auth/email-already-in-use') message = "Email già in uso.";
+            else if (error.code === 'auth/weak-password') message = "Password troppo debole.";
             else if (error.code === 'auth/invalid-email') message = "Email non valida.";
             authErrorMessage.textContent = message + " Codice: " + error.code;
-            console.error("Errore di registrazione:", error);
         }
     });
 
+    // --- Logout ---
     logoutButton.addEventListener('click', async () => {
         try {
             await auth.signOut();
-            console.log("Logout effettuato con successo.");
         } catch (error) {
             console.error("Errore durante il logout:", error);
         }
     });
 
+    // --- Reset password ---
     resetPasswordLink.addEventListener('click', async (e) => {
         e.preventDefault();
         const email = emailInput.value;
         if (!email) {
-            authErrorMessage.textContent = "Inserisci la tua email per il reset della password.";
+            authErrorMessage.textContent = "Inserisci la tua email.";
             return;
         }
         try {
             await auth.sendPasswordResetEmail(email);
             authErrorMessage.style.color = 'green';
-            authErrorMessage.textContent = "Email per il reset della password inviata a " + email + ". Controlla la tua casella di posta.";
+            authErrorMessage.textContent = "Email inviata a " + email;
         } catch (error) {
-            authErrorMessage.textContent = "Errore nell'invio dell'email di reset: " + error.message;
             authErrorMessage.style.color = 'red';
-            console.error("Errore reset password:", error);
+            authErrorMessage.textContent = "Errore: " + error.message;
         }
     });
 
-function degToCompass(num) {
-    const val = Math.floor((num / 22.5) + 0.5);
-    const arr = ["Nord", "NNE", "NE", "ENE", "Est", "ESE", "SE", "SSE",
-                 "Sud", "SSO", "SO", "OSO", "Ovest", "ONO", "NO", "NNO"];
-    return arr[(val % 16)];
-}
+    // --- Conversione vento ---
+    function degToCompass(num) {
+        const val = Math.floor((num / 22.5) + 0.5);
+        const arr = ["Nord", "NNE", "NE", "ENE", "Est", "ESE", "SE", "SSE",
+                     "Sud", "SSO", "SO", "OSO", "Ovest", "ONO", "NO", "NNO"];
+        return arr[(val % 16)];
+    }
 
 } catch (error) {
     document.getElementById('app').innerHTML = `
         <h1>Errore nell'inizializzazione dell'applicazione</h1>
-        <p>Si è verificato un problema grave durante il caricamento di Firebase.</p>
-        <p>Controlla la console degli sviluppatori (F12) per i dettagli.</p>
+        <p>Si è verificato un problema durante il caricamento.</p>
+        <p>Controlla la console (F12) per i dettagli.</p>
     `;
-    console.error("Errore critico nell'inizializzazione di Firebase:", error);
 }
