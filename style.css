@@ -250,3 +250,141 @@ hr {
     border-radius: 6px;
     font-size: 0.95em;
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    #app {
+        padding: 15px;
+        margin: 10px auto;
+        max-width: 100%;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+    }
+    
+    h2 {
+        font-size: 1.2em;
+    }
+    
+    h3 {
+        font-size: 1.1em;
+    }
+    
+    h4 {
+        font-size: 1em;
+    }
+    
+    /* Make "Bentornato" text responsive */
+    .user-info-bar {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .user-info-bar h2 {
+        font-size: clamp(1em, 4vw, 1.4em);
+        word-break: break-word;
+        width: 100%;
+    }
+    
+    .user-info-bar button {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    /* Date navigation */
+    .date-navigation {
+        flex-direction: column;
+        gap: 10px;
+        font-size: 1em;
+    }
+    
+    .date-navigation button {
+        width: 100%;
+        max-width: 200px;
+        margin: 5px 0;
+    }
+    
+    .date-navigation span {
+        order: -1;
+        margin-bottom: 10px;
+    }
+    
+    /* Auth container */
+    #auth-container input {
+        width: 90%;
+    }
+    
+    #auth-container button, .new-booking-form button {
+        width: 90%;
+        max-width: 300px;
+    }
+    
+    /* Schedule table */
+    .time-label {
+        width: 50px;
+        font-size: 0.75em;
+    }
+    
+    .half-hour-slot {
+        font-size: 0.75em;
+        padding: 5px;
+        min-height: 35px;
+    }
+    
+    /* Chart */
+    .meteo-chart-section canvas {
+        max-width: 100% !important;
+    }
+    
+    /* Version info */
+    #version-info {
+        font-size: 0.6em;
+        right: 5px;
+        top: 5px;
+    }
+    
+    /* Logo */
+    #aeroclub-logo {
+        max-width: 120px;
+    }
+    
+    /* Booking form */
+    .new-booking-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .new-booking-form input {
+        width: 90%;
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.3em;
+    }
+    
+    .user-info-bar h2 {
+        font-size: clamp(0.9em, 3.5vw, 1.2em);
+    }
+    
+    .time-label {
+        width: 40px;
+        font-size: 0.7em;
+    }
+    
+    .half-hour-slot {
+        font-size: 0.7em;
+        padding: 3px;
+        min-height: 30px;
+    }
+}

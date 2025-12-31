@@ -197,7 +197,8 @@ try {
     const renderHourlySchedule = (allBookings) => {
         hourlyScheduleDiv.innerHTML = '';
 
-        for (let hour = 0; hour < 24; hour++) {
+        // Skip hours that are always dark even in summer (0-5 and 21-23)
+        for (let hour = 6; hour < 21; hour++) {
             const hourBlock = document.createElement('div');
             hourBlock.classList.add('hour-block');
 

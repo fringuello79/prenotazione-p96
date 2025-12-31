@@ -8,7 +8,7 @@
 </head>
 <body>
     <div id="app">
-        <div id="version-info">rev0 - 30/12/2025</div>
+        <div id="version-info">rev1 - 31/12/2025</div>
         <img src="logo.jpg" alt="Logo Aeroclub dei Marsi" id="aeroclub-logo">
         <h1>Benvenuto all'Aeroclub dei Marsi</h1>
         <p id="loading-message">Caricamento applicazione...</p>
@@ -31,7 +31,7 @@
         <!-- Sezione App (visibile dopo il login) -->
         <div id="app-content" style="display: none;">
             <div class="user-info-bar">
-                <h2>Bentornato, <span id="user-display-name"></span>!</h2>
+                <h2>Bentornato, <span id="user-display-name"></span></h2>
                 <button id="logout-button">Esci</button>
             </div>
 
@@ -53,7 +53,7 @@
 
             <!-- ⭐ SEZIONE GRAFICO METEO E DA (AGGIUNTA) ⭐ -->
             <div class="meteo-chart-section">
-                <h3>Grafico Meteo e Density Altitude (72h)</h3>
+                <h3>Grafico meteo di oggi e QNH attuale</h3>
                 <canvas id="meteoChart" style="max-width: 900px; margin: 20px auto;"></canvas>
             </div>
 
@@ -66,7 +66,7 @@
                     <p>Caricamento tabella oraria...</p>
                 </div>
 
-                <h4>Nuova Prenotazione</h4>
+                <h4>Prenotazione oraria personalizzata</h4>
                 <div class="new-booking-form">
                     <input type="time" id="start-time" value="09:00" required>
                     <input type="time" id="end-time" value="10:00" required>
