@@ -364,6 +364,17 @@ try {
             const res = await fetch(url);
             const meteoData = await res.json();
 
+            // Check if the response contains an error
+            if (meteoData.error) {
+                throw new Error(meteoData.error.message || 'API Error');
+            }
+
+            // Validate required data exists
+            if (!meteoData.current || !meteoData.forecast || !meteoData.forecast.forecastday || 
+                !meteoData.forecast.forecastday[0] || !meteoData.forecast.forecastday[0].hour) {
+                throw new Error('Dati meteo incompleti');
+            }
+
             const temp = meteoData.current.temp_c;
             const windSpeed = meteoData.current.wind_kph / 1.852;
             const windDir = meteoData.current.wind_degree;
@@ -382,9 +393,10 @@ try {
             densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
             // --- Grafico ---
-            const hours = meteoData.forecast.forecastday[0].hour.map(h => h.time.split(" ")[1]);
-            const temps = meteoData.forecast.forecastday[0].hour.map(h => h.temp_c);
-            const pressures = meteoData.forecast.forecastday[0].hour.map(h => h.pressure_mb);
+            const forecastHours = meteoData.forecast.forecastday[0].hour;
+            const hours = forecastHours.map(h => h.time.split(" ")[1]);
+            const temps = forecastHours.map(h => h.temp_c);
+            const pressures = forecastHours.map(h => h.pressure_mb);
 
             const canvas = document.getElementById('meteoChart');
             const ctx = canvas.getContext('2d');
@@ -424,6 +436,7 @@ try {
             });
 
         } catch (err) {
+            console.error('Errore caricamento meteo:', err);
             weatherInfoSpan.textContent = "Errore meteo";
             densityAltitudeSpan.textContent = "N/D";
         }
@@ -512,6 +525,9 @@ try {
                 window.currentUserRole = 'socio'; 
             }
 
+            // Hide loading message before starting async operations
+            loadingMessage.style.display = 'none';
+            
             listenToBookings();
             loadWeatherData();
 
@@ -532,9 +548,8 @@ try {
             }
 
             renderHourlySchedule([]);
+            loadingMessage.style.display = 'none';
         }
-
-        loadingMessage.style.display = 'none';
     };
 
     auth.onAuthStateChanged((user) => {
