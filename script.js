@@ -370,9 +370,16 @@ try {
             }
 
             // Validate required data exists
-            if (!meteoData.current || !meteoData.forecast || !meteoData.forecast.forecastday || 
-                !meteoData.forecast.forecastday[0] || !meteoData.forecast.forecastday[0].hour) {
-                throw new Error('Dati meteo incompleti');
+            if (!meteoData.current) {
+                throw new Error('Dati meteo correnti non disponibili');
+            }
+            
+            if (!meteoData.forecast || !meteoData.forecast.forecastday || !meteoData.forecast.forecastday[0]) {
+                throw new Error('Dati previsione meteo non disponibili');
+            }
+            
+            if (!meteoData.forecast.forecastday[0].hour) {
+                throw new Error('Dati orari meteo non disponibili');
             }
 
             const temp = meteoData.current.temp_c;
@@ -524,9 +531,6 @@ try {
                 userDisplayNameSpan.textContent = user.email;
                 window.currentUserRole = 'socio'; 
             }
-
-            // Hide loading message before starting async operations
-            loadingMessage.style.display = 'none';
             
             listenToBookings();
             loadWeatherData();
@@ -548,8 +552,10 @@ try {
             }
 
             renderHourlySchedule([]);
-            loadingMessage.style.display = 'none';
         }
+
+        // Hide loading message after UI update
+        loadingMessage.style.display = 'none';
     };
 
     auth.onAuthStateChanged((user) => {
