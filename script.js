@@ -243,6 +243,7 @@ try {
                 let bookingIdForSlot = null;
                 let socioIdForSlot = null;
                 let isBookedByCurrentUser = false;
+                let bookingDataForSlot = null;
 
                 for (const booking of allBookings) {
                     const bookingStart = new Date(currentDisplayDate);
@@ -257,6 +258,7 @@ try {
                         bookedInfo = booking.socio_nome || 'Socio Sconosciuto';
                         bookingIdForSlot = booking.id;
                         socioIdForSlot = booking.socio_id;
+                        bookingDataForSlot = booking;
                         if (window.currentUser && booking.socio_id === window.currentUser.uid) {
                             isBookedByCurrentUser = true;
                         }
@@ -272,26 +274,76 @@ try {
                     if (isBookedByCurrentUser) {
                         slot.classList.add('own-booking-slot');
                     }
-                    slot.innerHTML = `<div class="slot-content">${bookedInfo}</div>`;
+                    
+                    // Build slot content with Hobbs data if available
+                    let slotHTML = `<div class="slot-content">${bookedInfo}`;
+                    if (bookingDataForSlot && (bookingDataForSlot.hobbs_partenza || bookingDataForSlot.hobbs_arrivo)) {
+                        slotHTML += `<div class="hobbs-info">`;
+                        if (bookingDataForSlot.hobbs_partenza) {
+                            slotHTML += `<span>P: ${bookingDataForSlot.hobbs_partenza}</span>`;
+                        }
+                        if (bookingDataForSlot.hobbs_arrivo) {
+                            slotHTML += `<span>A: ${bookingDataForSlot.hobbs_arrivo}</span>`;
+                        }
+                        slotHTML += `</div>`;
+                    }
+                    slotHTML += `</div>`;
+                    slot.innerHTML = slotHTML;
 
-                    if (window.currentUser && (isBookedByCurrentUser || window.currentUserRole === 'admin')) {
+                    if (window.currentUser) {
                         slot.style.cursor = 'pointer';
-                        slot.addEventListener('click', async () => {
-                            const bId = slot.dataset.bookingId;
-                            const bookedSocioId = slot.dataset.socioId;
-
-                            let confirmationMessage = `Vuoi annullare la prenotazione di ${bookedInfo}?`;
-                            if (window.currentUserRole === 'admin' && window.currentUser.uid !== bookedSocioId) {
-                                confirmationMessage = `Sei amministratore. Vuoi annullare la prenotazione di ${bookedInfo}?`;
+                        
+                        // Store booking data for event handlers
+                        slot.bookingData = bookingDataForSlot;
+                        
+                        // Long press timer
+                        let longPressTimer = null;
+                        let longPressTriggered = false;
+                        
+                        slot.addEventListener('mousedown', (e) => {
+                            if (!isBookedByCurrentUser && window.currentUserRole !== 'admin') return;
+                            
+                            longPressTriggered = false;
+                            longPressTimer = setTimeout(() => {
+                                longPressTriggered = true;
+                                showContextMenu(e.clientX, e.clientY, slot.bookingData, isBookedByCurrentUser);
+                            }, 800);
+                        });
+                        
+                        slot.addEventListener('mouseup', () => {
+                            if (longPressTimer) {
+                                clearTimeout(longPressTimer);
                             }
-
-                            if (confirm(confirmationMessage)) {
-                                try {
-                                    await db.collection('bookings').doc(bId).delete();
-                                    alert("Prenotazione annullata con successo!");
-                                } catch (error) {
-                                    alert("Errore nell'annullare la prenotazione: " + error.message);
-                                }
+                        });
+                        
+                        slot.addEventListener('mouseleave', () => {
+                            if (longPressTimer) {
+                                clearTimeout(longPressTimer);
+                            }
+                        });
+                        
+                        // Touch events for mobile
+                        slot.addEventListener('touchstart', (e) => {
+                            if (!isBookedByCurrentUser && window.currentUserRole !== 'admin') return;
+                            
+                            longPressTriggered = false;
+                            longPressTimer = setTimeout(() => {
+                                longPressTriggered = true;
+                                const touch = e.touches[0];
+                                showContextMenu(touch.clientX, touch.clientY, slot.bookingData, isBookedByCurrentUser);
+                            }, 800);
+                        });
+                        
+                        slot.addEventListener('touchend', () => {
+                            if (longPressTimer) {
+                                clearTimeout(longPressTimer);
+                            }
+                        });
+                        
+                        // Normal click - show details dialog
+                        slot.addEventListener('click', () => {
+                            if (!longPressTriggered) {
+                                showBookingDetails(slot.bookingData);
                             }
                         });
                     }
@@ -325,6 +377,166 @@ try {
             hourlyScheduleDiv.appendChild(hourBlock);
         }
     };
+
+    // --- Helper Functions for Hobbs Meter ---
+    
+    // Show booking details dialog (visible to all)
+    const showBookingDetails = (booking) => {
+        const dialog = document.getElementById('booking-details-dialog');
+        const dateStr = formatDateFull(currentDisplayDate);
+        
+        document.getElementById('detail-socio').textContent = booking.socio_nome || 'Socio Sconosciuto';
+        document.getElementById('detail-date').textContent = dateStr;
+        document.getElementById('detail-time').textContent = `${booking.ora_inizio} - ${booking.ora_fine}`;
+        
+        const hobbsP = booking.hobbs_partenza;
+        const hobbsA = booking.hobbs_arrivo;
+        
+        document.getElementById('detail-hobbs-partenza').textContent = hobbsP ? hobbsP : 'Non registrato';
+        document.getElementById('detail-hobbs-arrivo').textContent = hobbsA ? hobbsA : 'Non registrato';
+        
+        if (hobbsP && hobbsA) {
+            const duration = (parseFloat(hobbsA) - parseFloat(hobbsP)).toFixed(1);
+            document.getElementById('detail-hobbs-duration').textContent = `${duration} ore`;
+        } else {
+            document.getElementById('detail-hobbs-duration').textContent = '-';
+        }
+        
+        dialog.style.display = 'flex';
+    };
+    
+    // Show context menu for long press
+    const showContextMenu = (x, y, booking, isOwner) => {
+        const contextMenu = document.getElementById('context-menu');
+        const editItem = document.getElementById('menu-edit-hobbs');
+        const deleteItem = document.getElementById('menu-delete-booking');
+        
+        // Store current booking data
+        contextMenu.bookingData = booking;
+        
+        // Show/hide edit based on ownership
+        if (isOwner) {
+            editItem.style.display = 'block';
+        } else {
+            editItem.style.display = 'none';
+        }
+        
+        // Position menu
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+        contextMenu.style.display = 'block';
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.style.display = 'none';
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 100);
+    };
+    
+    // Show Hobbs edit dialog
+    const showHobbsEditDialog = (booking) => {
+        const dialog = document.getElementById('hobbs-edit-dialog');
+        const infoText = `${booking.socio_nome} - ${booking.ora_inizio} - ${booking.ora_fine}`;
+        
+        document.getElementById('edit-booking-info').textContent = infoText;
+        document.getElementById('hobbs-partenza-input').value = booking.hobbs_partenza || '';
+        document.getElementById('hobbs-arrivo-input').value = booking.hobbs_arrivo || '';
+        document.getElementById('hobbs-error-message').textContent = '';
+        
+        // Store booking ID for saving
+        dialog.dataset.bookingId = booking.id;
+        
+        dialog.style.display = 'flex';
+    };
+    
+    // Save Hobbs data
+    const saveHobbsData = async () => {
+        const dialog = document.getElementById('hobbs-edit-dialog');
+        const bookingId = dialog.dataset.bookingId;
+        const hobbsP = document.getElementById('hobbs-partenza-input').value;
+        const hobbsA = document.getElementById('hobbs-arrivo-input').value;
+        const errorMsg = document.getElementById('hobbs-error-message');
+        
+        errorMsg.textContent = '';
+        
+        // Validation
+        if (hobbsP && hobbsA) {
+            const p = parseFloat(hobbsP);
+            const a = parseFloat(hobbsA);
+            if (a <= p) {
+                errorMsg.textContent = 'Hobbs Arrivo deve essere maggiore di Hobbs Partenza';
+                return;
+            }
+        }
+        
+        try {
+            await db.collection('bookings').doc(bookingId).update({
+                hobbs_partenza: hobbsP || null,
+                hobbs_arrivo: hobbsA || null
+            });
+            
+            dialog.style.display = 'none';
+        } catch (error) {
+            errorMsg.textContent = 'Errore nel salvataggio: ' + error.message;
+        }
+    };
+    
+    // Delete booking
+    const deleteBooking = async (booking) => {
+        const confirmMsg = `Vuoi eliminare la prenotazione di ${booking.socio_nome} (${booking.ora_inizio} - ${booking.ora_fine})?`;
+        
+        if (confirm(confirmMsg)) {
+            try {
+                await db.collection('bookings').doc(booking.id).delete();
+                document.getElementById('context-menu').style.display = 'none';
+            } catch (error) {
+                alert('Errore nell\'eliminazione: ' + error.message);
+            }
+        }
+    };
+    
+    // Setup dialog event listeners
+    const setupDialogListeners = () => {
+        // Close buttons
+        document.querySelectorAll('.close-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.modal').style.display = 'none';
+            });
+        });
+        
+        // Close on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+        
+        // Context menu items
+        document.getElementById('menu-edit-hobbs').addEventListener('click', () => {
+            const menu = document.getElementById('context-menu');
+            showHobbsEditDialog(menu.bookingData);
+            menu.style.display = 'none';
+        });
+        
+        document.getElementById('menu-delete-booking').addEventListener('click', () => {
+            const menu = document.getElementById('context-menu');
+            deleteBooking(menu.bookingData);
+        });
+        
+        // Hobbs edit dialog buttons
+        document.getElementById('save-hobbs-button').addEventListener('click', saveHobbsData);
+        document.getElementById('cancel-hobbs-button').addEventListener('click', () => {
+            document.getElementById('hobbs-edit-dialog').style.display = 'none';
+        });
+    };
+    
+    // Initialize dialog listeners
+    setupDialogListeners();
 
     // --- METEO + DA (WeatherAPI) ---
     let meteoChart = null;

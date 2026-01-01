@@ -8,7 +8,7 @@
 </head>
 <body>
     <div id="app">
-        <div id="version-info">rev1 - 31/12/2025</div>
+        <div id="version-info">rev2 - 01/01/2026
         <img src="logo.jpg" alt="Logo Aeroclub dei Marsi" id="aeroclub-logo">
         <h1>Benvenuto all'Aeroclub dei Marsi</h1>
         <p id="loading-message">Caricamento applicazione...</p>
@@ -74,6 +74,56 @@
                     <p id="booking-error-message" style="color: red;"></p>
                 </div>
             </div>
+        </div>
+
+        <!-- Booking Details Dialog -->
+        <div id="booking-details-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>Dettagli Prenotazione</h3>
+                <div id="booking-details-content">
+                    <p><strong>Socio:</strong> <span id="detail-socio"></span></p>
+                    <p><strong>Data:</strong> <span id="detail-date"></span></p>
+                    <p><strong>Orario:</strong> <span id="detail-time"></span></p>
+                    <div class="hobbs-display">
+                        <p><strong>Hobbs Partenza:</strong> <span id="detail-hobbs-partenza">Non registrato</span></p>
+                        <p><strong>Hobbs Arrivo:</strong> <span id="detail-hobbs-arrivo">Non registrato</span></p>
+                        <p class="hobbs-duration"><strong>Ore di volo:</strong> <span id="detail-hobbs-duration">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hobbs Edit Dialog -->
+        <div id="hobbs-edit-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>Modifica Dati Hobbs</h3>
+                <div id="hobbs-edit-content">
+                    <p><strong>Prenotazione:</strong> <span id="edit-booking-info"></span></p>
+                    <div class="hobbs-form">
+                        <label for="hobbs-partenza-input">Hobbs Partenza:</label>
+                        <input type="number" id="hobbs-partenza-input" step="0.1" min="0" placeholder="es. 123.4">
+                        
+                        <label for="hobbs-arrivo-input">Hobbs Arrivo:</label>
+                        <input type="number" id="hobbs-arrivo-input" step="0.1" min="0" placeholder="es. 125.1">
+                        
+                        <p class="hobbs-help-text">💡 Inserisci la lettura del contatore Hobbs prima e dopo il volo</p>
+                        <p id="hobbs-error-message" style="color: red;"></p>
+                        
+                        <div class="modal-buttons">
+                            <button id="save-hobbs-button" class="primary-button">Salva</button>
+                            <button id="cancel-hobbs-button" class="secondary-button">Annulla</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Context Menu -->
+        <div id="context-menu" class="context-menu" style="display: none;">
+            <div class="context-menu-item" id="menu-edit-hobbs">✏️ Modifica Hobbs</div>
+            <div class="context-menu-item" id="menu-delete-booking">🗑️ Elimina Prenotazione</div>
         </div>
     </div>
 
