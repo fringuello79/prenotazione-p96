@@ -296,49 +296,43 @@ try {
                         // Store booking data for event handlers
                         slot.bookingData = bookingDataForSlot;
                         
-                        // Long press timer
+                        // Check if user can edit
+                        const canEdit = isBookedByCurrentUser || window.currentUserRole === 'admin';
+                        
+                        // Long press handling helper
                         let longPressTimer = null;
                         let longPressTriggered = false;
                         
-                        slot.addEventListener('mousedown', (e) => {
-                            if (!isBookedByCurrentUser && window.currentUserRole !== 'admin') return;
-                            
+                        const startLongPress = (x, y) => {
+                            if (!canEdit) return;
                             longPressTriggered = false;
                             longPressTimer = setTimeout(() => {
                                 longPressTriggered = true;
-                                showContextMenu(e.clientX, e.clientY, slot.bookingData, isBookedByCurrentUser);
+                                showContextMenu(x, y, slot.bookingData, isBookedByCurrentUser);
                             }, 800);
-                        });
+                        };
                         
-                        slot.addEventListener('mouseup', () => {
+                        const cancelLongPress = () => {
                             if (longPressTimer) {
                                 clearTimeout(longPressTimer);
                             }
+                        };
+                        
+                        // Mouse events
+                        slot.addEventListener('mousedown', (e) => {
+                            startLongPress(e.clientX, e.clientY);
                         });
                         
-                        slot.addEventListener('mouseleave', () => {
-                            if (longPressTimer) {
-                                clearTimeout(longPressTimer);
-                            }
-                        });
+                        slot.addEventListener('mouseup', cancelLongPress);
+                        slot.addEventListener('mouseleave', cancelLongPress);
                         
                         // Touch events for mobile
                         slot.addEventListener('touchstart', (e) => {
-                            if (!isBookedByCurrentUser && window.currentUserRole !== 'admin') return;
-                            
-                            longPressTriggered = false;
-                            longPressTimer = setTimeout(() => {
-                                longPressTriggered = true;
-                                const touch = e.touches[0];
-                                showContextMenu(touch.clientX, touch.clientY, slot.bookingData, isBookedByCurrentUser);
-                            }, 800);
+                            const touch = e.touches[0];
+                            startLongPress(touch.clientX, touch.clientY);
                         });
                         
-                        slot.addEventListener('touchend', () => {
-                            if (longPressTimer) {
-                                clearTimeout(longPressTimer);
-                            }
-                        });
+                        slot.addEventListener('touchend', cancelLongPress);
                         
                         // Normal click - show details dialog
                         slot.addEventListener('click', () => {
