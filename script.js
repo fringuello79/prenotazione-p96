@@ -295,50 +295,11 @@ try {
                         
                         // Store booking data for event handlers
                         slot.bookingData = bookingDataForSlot;
+                        slot.isOwner = isBookedByCurrentUser;
                         
-                        // Check if user can edit
-                        const canEdit = isBookedByCurrentUser || window.currentUserRole === 'admin';
-                        
-                        // Long press handling helper
-                        let longPressTimer = null;
-                        let longPressTriggered = false;
-                        
-                        const startLongPress = (x, y) => {
-                            if (!canEdit) return;
-                            longPressTriggered = false;
-                            longPressTimer = setTimeout(() => {
-                                longPressTriggered = true;
-                                showContextMenu(x, y, slot.bookingData, isBookedByCurrentUser);
-                            }, 800);
-                        };
-                        
-                        const cancelLongPress = () => {
-                            if (longPressTimer) {
-                                clearTimeout(longPressTimer);
-                            }
-                        };
-                        
-                        // Mouse events
-                        slot.addEventListener('mousedown', (e) => {
-                            startLongPress(e.clientX, e.clientY);
-                        });
-                        
-                        slot.addEventListener('mouseup', cancelLongPress);
-                        slot.addEventListener('mouseleave', cancelLongPress);
-                        
-                        // Touch events for mobile
-                        slot.addEventListener('touchstart', (e) => {
-                            const touch = e.touches[0];
-                            startLongPress(touch.clientX, touch.clientY);
-                        });
-                        
-                        slot.addEventListener('touchend', cancelLongPress);
-                        
-                        // Normal click - show details dialog
+                        // Simple click - show details dialog
                         slot.addEventListener('click', () => {
-                            if (!longPressTriggered) {
-                                showBookingDetails(slot.bookingData);
-                            }
+                            showBookingDetails(slot.bookingData, slot.isOwner);
                         });
                     }
 
@@ -375,7 +336,7 @@ try {
     // --- Helper Functions for Hobbs Meter ---
     
     // Show booking details dialog (visible to all)
-    const showBookingDetails = (booking) => {
+    const showBookingDetails = (booking, isOwner) => {
         const dialog = document.getElementById('booking-details-dialog');
         const dateStr = formatDateFull(currentDisplayDate);
         
@@ -396,38 +357,17 @@ try {
             document.getElementById('detail-hobbs-duration').textContent = '-';
         }
         
-        dialog.style.display = 'flex';
-    };
-    
-    // Show context menu for long press
-    const showContextMenu = (x, y, booking, isOwner) => {
-        const contextMenu = document.getElementById('context-menu');
-        const editItem = document.getElementById('menu-edit-hobbs');
-        const deleteItem = document.getElementById('menu-delete-booking');
-        
-        // Store current booking data
-        contextMenu.bookingData = booking;
-        
-        // Show/hide edit based on ownership
-        if (isOwner) {
-            editItem.style.display = 'block';
+        // Show/hide action buttons based on ownership or admin role
+        const actionButtons = document.getElementById('booking-action-buttons');
+        if (isOwner || window.currentUserRole === 'admin') {
+            actionButtons.style.display = 'flex';
+            actionButtons.dataset.bookingId = booking.id;
+            actionButtons.dataset.bookingData = JSON.stringify(booking);
         } else {
-            editItem.style.display = 'none';
+            actionButtons.style.display = 'none';
         }
         
-        // Position menu
-        contextMenu.style.left = `${x}px`;
-        contextMenu.style.top = `${y}px`;
-        contextMenu.style.display = 'block';
-        
-        // Close menu when clicking outside
-        const closeMenu = (e) => {
-            if (!contextMenu.contains(e.target)) {
-                contextMenu.style.display = 'none';
-                document.removeEventListener('click', closeMenu);
-            }
-        };
-        setTimeout(() => document.addEventListener('click', closeMenu), 100);
+        dialog.style.display = 'flex';
     };
     
     // Show Hobbs edit dialog
@@ -479,13 +419,13 @@ try {
     };
     
     // Delete booking
-    const deleteBooking = async (booking) => {
-        const confirmMsg = `Vuoi eliminare la prenotazione di ${booking.socio_nome} (${booking.ora_inizio} - ${booking.ora_fine})?`;
+    const deleteBooking = async (bookingId, bookingInfo) => {
+        const confirmMsg = `Vuoi eliminare la prenotazione di ${bookingInfo}?`;
         
         if (confirm(confirmMsg)) {
             try {
-                await db.collection('bookings').doc(booking.id).delete();
-                document.getElementById('context-menu').style.display = 'none';
+                await db.collection('bookings').doc(bookingId).delete();
+                document.getElementById('booking-details-dialog').style.display = 'none';
             } catch (error) {
                 alert('Errore nell\'eliminazione: ' + error.message);
             }
@@ -510,16 +450,21 @@ try {
             });
         });
         
-        // Context menu items
-        document.getElementById('menu-edit-hobbs').addEventListener('click', () => {
-            const menu = document.getElementById('context-menu');
-            showHobbsEditDialog(menu.bookingData);
-            menu.style.display = 'none';
+        // Edit Hobbs button in details dialog
+        document.getElementById('edit-hobbs-from-details').addEventListener('click', () => {
+            const actionButtons = document.getElementById('booking-action-buttons');
+            const bookingData = JSON.parse(actionButtons.dataset.bookingData);
+            document.getElementById('booking-details-dialog').style.display = 'none';
+            showHobbsEditDialog(bookingData);
         });
         
-        document.getElementById('menu-delete-booking').addEventListener('click', () => {
-            const menu = document.getElementById('context-menu');
-            deleteBooking(menu.bookingData);
+        // Delete button in details dialog
+        document.getElementById('delete-from-details').addEventListener('click', () => {
+            const actionButtons = document.getElementById('booking-action-buttons');
+            const bookingId = actionButtons.dataset.bookingId;
+            const bookingData = JSON.parse(actionButtons.dataset.bookingData);
+            const bookingInfo = `${bookingData.socio_nome} (${bookingData.ora_inizio} - ${bookingData.ora_fine})`;
+            deleteBooking(bookingId, bookingInfo);
         });
         
         // Hobbs edit dialog buttons
