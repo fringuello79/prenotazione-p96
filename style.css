@@ -582,3 +582,67 @@ hr {
         min-height: 30px;
     }
 }
+
+/* Photo upload and display styles */
+.hobbs-form input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    margin: 8px 0;
+    border: 2px dashed #667eea;
+    border-radius: 8px;
+    background: #f8f9fa;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.hobbs-form input[type="file"]:hover {
+    background: #e3f2fd;
+    border-color: #764ba2;
+}
+
+.photo-preview {
+    margin: 10px 0;
+    text-align: center;
+}
+
+.photo-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    margin-top: 8px;
+}
+
+.photo-display {
+    margin: 15px 0;
+    text-align: center;
+}
+
+.photo-display img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.photo-display img:hover {
+    transform: scale(1.05);
+}
+
+.photo-preview .remove-photo {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 5px 10px;
+    background: #f5576c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.photo-preview .remove-photo:hover {
+    background: #d32f2f;
+}

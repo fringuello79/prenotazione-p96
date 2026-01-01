@@ -13,6 +13,7 @@ try {
     const app = firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
+    const storage = firebase.storage();
     const analytics = firebase.analytics();
 
     // Riferimenti agli elementi HTML
@@ -350,6 +351,24 @@ try {
         document.getElementById('detail-hobbs-partenza').textContent = hobbsP ? hobbsP : 'Non registrato';
         document.getElementById('detail-hobbs-arrivo').textContent = hobbsA ? hobbsA : 'Non registrato';
         
+        // Show photos if available
+        const partenzaPhotoContainer = document.getElementById('detail-hobbs-partenza-photo-container');
+        const arrivoPhotoContainer = document.getElementById('detail-hobbs-arrivo-photo-container');
+        
+        if (booking.hobbs_partenza_photo_url) {
+            document.getElementById('detail-hobbs-partenza-photo').src = booking.hobbs_partenza_photo_url;
+            partenzaPhotoContainer.style.display = 'block';
+        } else {
+            partenzaPhotoContainer.style.display = 'none';
+        }
+        
+        if (booking.hobbs_arrivo_photo_url) {
+            document.getElementById('detail-hobbs-arrivo-photo').src = booking.hobbs_arrivo_photo_url;
+            arrivoPhotoContainer.style.display = 'block';
+        } else {
+            arrivoPhotoContainer.style.display = 'none';
+        }
+        
         if (hobbsP && hobbsA) {
             const duration = (parseFloat(hobbsA) - parseFloat(hobbsP)).toFixed(1);
             document.getElementById('detail-hobbs-duration').textContent = `${duration} ore`;
@@ -380,10 +399,99 @@ try {
         document.getElementById('hobbs-arrivo-input').value = booking.hobbs_arrivo || '';
         document.getElementById('hobbs-error-message').textContent = '';
         
-        // Store booking ID for saving
+        // Clear photo previews
+        document.getElementById('hobbs-partenza-photo-preview').innerHTML = '';
+        document.getElementById('hobbs-arrivo-photo-preview').innerHTML = '';
+        
+        // Clear file inputs
+        document.getElementById('hobbs-partenza-photo').value = '';
+        document.getElementById('hobbs-arrivo-photo').value = '';
+        
+        // Show existing photos if available
+        if (booking.hobbs_partenza_photo_url) {
+            const img = document.createElement('img');
+            img.src = booking.hobbs_partenza_photo_url;
+            document.getElementById('hobbs-partenza-photo-preview').appendChild(img);
+        }
+        
+        if (booking.hobbs_arrivo_photo_url) {
+            const img = document.createElement('img');
+            img.src = booking.hobbs_arrivo_photo_url;
+            document.getElementById('hobbs-arrivo-photo-preview').appendChild(img);
+        }
+        
+        // Store booking ID and data for saving
         dialog.dataset.bookingId = booking.id;
+        dialog.dataset.bookingData = JSON.stringify(booking);
         
         dialog.style.display = 'flex';
+    };
+    
+    // Helper function to upload photo to Firebase Storage
+    const uploadPhoto = async (file, bookingId, photoType) => {
+        if (!file) return null;
+        
+        const storageRef = storage.ref();
+        const photoPath = `hobbs-photos/${bookingId}/${photoType}_${Date.now()}.jpg`;
+        const fileRef = storageRef.child(photoPath);
+        
+        try {
+            await fileRef.put(file);
+            const downloadURL = await fileRef.getDownloadURL();
+            return downloadURL;
+        } catch (error) {
+            console.error('Error uploading photo:', error);
+            throw error;
+        }
+    };
+    
+    // Helper function to find consecutive bookings
+    const findConsecutiveBookings = async (currentBooking) => {
+        const bookingDate = currentBooking.data;
+        const userId = window.currentUser.uid;
+        
+        // Query bookings for the same date and user
+        const snapshot = await db.collection('bookings')
+            .where('data', '==', bookingDate)
+            .where('socio_id', '==', userId)
+            .get();
+        
+        if (snapshot.empty) return [];
+        
+        // Sort bookings by start time
+        const bookings = [];
+        snapshot.forEach(doc => {
+            bookings.push({ id: doc.id, ...doc.data() });
+        });
+        bookings.sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+        
+        // Find consecutive group
+        const consecutiveGroup = [currentBooking];
+        const currentIndex = bookings.findIndex(b => b.id === currentBooking.id);
+        
+        // Look forward
+        for (let i = currentIndex + 1; i < bookings.length; i++) {
+            const prevEnd = bookings[i-1].ora_fine;
+            const currStart = bookings[i].ora_inizio;
+            if (prevEnd === currStart) {
+                consecutiveGroup.push(bookings[i]);
+            } else {
+                break;
+            }
+        }
+        
+        // Look backward
+        for (let i = currentIndex - 1; i >= 0; i--) {
+            const currEnd = bookings[i].ora_fine;
+            const nextStart = bookings[i+1].ora_inizio;
+            if (currEnd === nextStart) {
+                consecutiveGroup.unshift(bookings[i]);
+            } else {
+                break;
+            }
+        }
+        
+        return consecutiveGroup.length > 1 ? consecutiveGroup : [];
     };
     
     // Save Hobbs data
@@ -393,6 +501,9 @@ try {
         const hobbsP = document.getElementById('hobbs-partenza-input').value;
         const hobbsA = document.getElementById('hobbs-arrivo-input').value;
         const errorMsg = document.getElementById('hobbs-error-message');
+        
+        const partenzaPhotoFile = document.getElementById('hobbs-partenza-photo').files[0];
+        const arrivoPhotoFile = document.getElementById('hobbs-arrivo-photo').files[0];
         
         errorMsg.textContent = '';
         
@@ -413,6 +524,8 @@ try {
         }
         
         try {
+            errorMsg.textContent = 'Salvataggio in corso...';
+            
             // First, verify the booking belongs to the current user
             const bookingDoc = await db.collection('bookings').doc(bookingId).get();
             
@@ -421,7 +534,7 @@ try {
                 return;
             }
             
-            const bookingData = bookingDoc.data();
+            const bookingData = { id: bookingId, ...bookingDoc.data() };
             
             // Check if user owns this booking or is admin
             if (bookingData.socio_id !== window.currentUser.uid && window.currentUserRole !== 'admin') {
@@ -429,11 +542,49 @@ try {
                 return;
             }
             
-            // Update the booking
-            await db.collection('bookings').doc(bookingId).update({
+            // Upload photos if provided
+            let partenzaPhotoURL = bookingData.hobbs_partenza_photo_url || null;
+            let arrivoPhotoURL = bookingData.hobbs_arrivo_photo_url || null;
+            
+            if (partenzaPhotoFile) {
+                partenzaPhotoURL = await uploadPhoto(partenzaPhotoFile, bookingId, 'partenza');
+            }
+            
+            if (arrivoPhotoFile) {
+                arrivoPhotoURL = await uploadPhoto(arrivoPhotoFile, bookingId, 'arrivo');
+            }
+            
+            // Check for consecutive bookings
+            const consecutiveBookings = await findConsecutiveBookings(bookingData);
+            
+            let applyToAll = false;
+            if (consecutiveBookings.length > 0) {
+                const timeRange = `${consecutiveBookings[0].ora_inizio} - ${consecutiveBookings[consecutiveBookings.length-1].ora_fine}`;
+                applyToAll = confirm(
+                    `Hai ${consecutiveBookings.length} prenotazioni consecutive (${timeRange}).\n\n` +
+                    `Vuoi applicare questi dati Hobbs a tutte le prenotazioni consecutive?`
+                );
+            }
+            
+            // Prepare update data
+            const updateData = {
                 hobbs_partenza: hobbsP || null,
-                hobbs_arrivo: hobbsA || null
-            });
+                hobbs_arrivo: hobbsA || null,
+                hobbs_partenza_photo_url: partenzaPhotoURL,
+                hobbs_arrivo_photo_url: arrivoPhotoURL
+            };
+            
+            // Update the current booking
+            await db.collection('bookings').doc(bookingId).update(updateData);
+            
+            // Update consecutive bookings if user agreed
+            if (applyToAll && consecutiveBookings.length > 0) {
+                const updatePromises = consecutiveBookings
+                    .filter(b => b.id !== bookingId)
+                    .map(b => db.collection('bookings').doc(b.id).update(updateData));
+                
+                await Promise.all(updatePromises);
+            }
             
             dialog.style.display = 'none';
         } catch (error) {
@@ -495,6 +646,33 @@ try {
         document.getElementById('save-hobbs-button').addEventListener('click', saveHobbsData);
         document.getElementById('cancel-hobbs-button').addEventListener('click', () => {
             document.getElementById('hobbs-edit-dialog').style.display = 'none';
+        });
+        
+        // Photo preview handlers
+        document.getElementById('hobbs-partenza-photo').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const preview = document.getElementById('hobbs-partenza-photo-preview');
+            
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    preview.innerHTML = `<img src="${event.target.result}" alt="Preview Partenza">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        document.getElementById('hobbs-arrivo-photo').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const preview = document.getElementById('hobbs-arrivo-photo-preview');
+            
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    preview.innerHTML = `<img src="${event.target.result}" alt="Preview Arrivo">`;
+                };
+                reader.readAsDataURL(file);
+            }
         });
     };
     
