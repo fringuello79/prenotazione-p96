@@ -396,6 +396,12 @@ try {
         
         errorMsg.textContent = '';
         
+        // Check if user is authenticated
+        if (!window.currentUser) {
+            errorMsg.textContent = 'Devi essere autenticato per salvare i dati';
+            return;
+        }
+        
         // Validation
         if (hobbsP && hobbsA) {
             const p = parseFloat(hobbsP);
@@ -407,6 +413,23 @@ try {
         }
         
         try {
+            // First, verify the booking belongs to the current user
+            const bookingDoc = await db.collection('bookings').doc(bookingId).get();
+            
+            if (!bookingDoc.exists) {
+                errorMsg.textContent = 'Prenotazione non trovata';
+                return;
+            }
+            
+            const bookingData = bookingDoc.data();
+            
+            // Check if user owns this booking or is admin
+            if (bookingData.socio_id !== window.currentUser.uid && window.currentUserRole !== 'admin') {
+                errorMsg.textContent = 'Non hai i permessi per modificare questa prenotazione';
+                return;
+            }
+            
+            // Update the booking
             await db.collection('bookings').doc(bookingId).update({
                 hobbs_partenza: hobbsP || null,
                 hobbs_arrivo: hobbsA || null
@@ -414,6 +437,7 @@ try {
             
             dialog.style.display = 'none';
         } catch (error) {
+            console.error('Errore Hobbs:', error);
             errorMsg.textContent = 'Errore nel salvataggio: ' + error.message;
         }
     };
