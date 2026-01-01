@@ -450,8 +450,6 @@ try {
             weatherInfoSpan.textContent = "Errore meteo";
             densityAltitudeSpan.textContent = "N/D";
         }
-
-        renderHourlySchedule([]);
     };
 
     loadWeatherData();
@@ -472,8 +470,8 @@ try {
             .where('data', '<', nextDayStart)
             .orderBy('data', 'asc')
             .onSnapshot(async (snapshot) => {
-                const bookings = [];
-                for (const doc of snapshot.docs) {
+                // Fetch all user data in parallel for better performance
+                const bookingPromises = snapshot.docs.map(async (doc) => {
                     const booking = doc.data();
                     let socio_nome = 'Socio Sconosciuto';
 
@@ -495,11 +493,13 @@ try {
                         }
                     }
 
-                    bookings.push({ id: doc.id, socio_nome, ...booking });
-                }
+                    return { id: doc.id, socio_nome, ...booking };
+                });
 
+                const bookings = await Promise.all(bookingPromises);
                 renderHourlySchedule(bookings);
             }, (error) => {
+                console.error("Errore nel caricamento delle prenotazioni:", error);
                 hourlyScheduleDiv.innerHTML = '<p style="color: red;">Errore nel caricamento delle prenotazioni.</p>';
             });
     };
