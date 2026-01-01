@@ -9,11 +9,14 @@ const firebaseConfig = {
   measurementId: "G-PMEG5ZLMLZ"
 };
 
+// Imgur API Configuration
+// IMPORTANTE: Inserisci qui il tuo Client ID ottenuto da https://api.imgur.com/oauth2/addclient
+const IMGUR_CLIENT_ID = 'YOUR_IMGUR_CLIENT_ID_HERE';
+
 try {
     const app = firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-    const storage = firebase.storage();
     const analytics = firebase.analytics();
 
     // Riferimenti agli elementi HTML
@@ -427,20 +430,58 @@ try {
         dialog.style.display = 'flex';
     };
     
-    // Helper function to upload photo to Firebase Storage
+    // Helper function to upload photo to Imgur
     const uploadPhoto = async (file, bookingId, photoType) => {
         if (!file) return null;
         
-        const storageRef = storage.ref();
-        const photoPath = `hobbs-photos/${bookingId}/${photoType}_${Date.now()}.jpg`;
-        const fileRef = storageRef.child(photoPath);
+        // Validate Imgur Client ID is configured
+        if (IMGUR_CLIENT_ID === 'YOUR_IMGUR_CLIENT_ID_HERE') {
+            throw new Error('Configura il Client ID di Imgur nel file script.js');
+        }
         
         try {
-            await fileRef.put(file);
-            const downloadURL = await fileRef.getDownloadURL();
-            return downloadURL;
+            // Convert file to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve, reject) => {
+                reader.onload = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            
+            const base64Image = await base64Promise;
+            
+            // Upload to Imgur
+            const response = await fetch('https://api.imgur.com/3/image', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Client-ID ${IMGUR_CLIENT_ID}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image: base64Image,
+                    type: 'base64',
+                    name: `${bookingId}_${photoType}_${Date.now()}`
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Errore upload Imgur');
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error('Upload Imgur fallito');
+            }
+            
+            // Return the direct link to the image
+            return data.data.link;
+            
         } catch (error) {
-            console.error('Error uploading photo:', error);
+            console.error('Errore upload foto su Imgur:', error);
             throw error;
         }
     };
