@@ -832,9 +832,9 @@ try {
                 `${temp}°C, vento ${windSpeed.toFixed(0)} kt da ${degToCompass(windDir)}, QNH ${pressure} hPa`;
 
             // --- Density Altitude ---
-            const elevationFt = 2820;
+            const elevationFt = 2200;
             const PA = elevationFt + (1013.25 - pressure) * 30;
-            const T_ISA = 15 - 2 * (elevationFt / 1000);
+            const T_ISA = 15 - 1.98 * (elevationFt / 1000);
             const DA = Math.round(PA + 120 * (temp - T_ISA));
 
             densityAltitudeSpan.textContent = `${DA}`;
