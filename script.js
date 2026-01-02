@@ -42,6 +42,7 @@ try {
     const sunsetTimeSpan = document.getElementById('sunset-time');
     const weatherInfoSpan = document.getElementById('weather-info');
     const densityAltitudeSpan = document.getElementById('density-altitude');
+    const meteoChartTitle = document.getElementById('meteo-chart-title');
     const hourlyScheduleDiv = document.getElementById('hourly-schedule');
     const startTimeInput = document.getElementById('start-time');
     const endTimeInput = document.getElementById('end-time');
@@ -756,6 +757,15 @@ try {
 
     const loadWeatherData = async () => {
         const formattedDate = currentDisplayDate.toISOString().split('T')[0];
+        
+        // Update the chart title with the actual date
+        const dateForTitle = currentDisplayDate.toLocaleDateString('it-IT', { 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        });
+        meteoChartTitle.textContent = `Grafico meteo del ${dateForTitle} e andamento QNH`;
 
         sunriseTimeSpan.textContent = "Caricamento...";
         sunsetTimeSpan.textContent = "Caricamento...";
@@ -785,7 +795,8 @@ try {
         // --- METEO WeatherAPI ---
         try {
             const key = "560c2e928ac34d779ae64228253112";
-            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&days=1&aqi=no&alerts=no`;
+            // Add date parameter to get forecast for the specific date
+            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&dt=${formattedDate}&days=1&aqi=no&alerts=no`;
 
             const res = await fetch(url);
             const meteoData = await res.json();
