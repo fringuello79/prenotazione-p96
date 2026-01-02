@@ -9,9 +9,9 @@ const firebaseConfig = {
   measurementId: "G-PMEG5ZLMLZ"
 };
 
-// Imgur API Configuration
-// IMPORTANTE: Inserisci qui il tuo Client ID ottenuto da https://api.imgur.com/oauth2/addclient
-const IMGUR_CLIENT_ID = 'YOUR_IMGUR_CLIENT_ID_HERE';
+// ImgBB API Configuration
+// IMPORTANTE: La tua API Key di ImgBB
+const IMGBB_API_KEY = '63a0e961fb3af5dada39106e441a29e9';
 
 try {
     const app = firebase.initializeApp(firebaseConfig);
@@ -430,14 +430,9 @@ try {
         dialog.style.display = 'flex';
     };
     
-    // Helper function to upload photo to Imgur
+    // Helper function to upload photo to ImgBB
     const uploadPhoto = async (file, bookingId, photoType) => {
         if (!file) return null;
-        
-        // Validate Imgur Client ID is configured
-        if (IMGUR_CLIENT_ID === 'YOUR_IMGUR_CLIENT_ID_HERE') {
-            throw new Error('Configura il Client ID di Imgur nel file script.js');
-        }
         
         try {
             // Convert file to base64
@@ -453,35 +448,33 @@ try {
             
             const base64Image = await base64Promise;
             
-            // Upload to Imgur
-            const response = await fetch('https://api.imgur.com/3/image', {
+            // Create FormData for ImgBB API
+            const formData = new FormData();
+            formData.append('key', IMGBB_API_KEY);
+            formData.append('image', base64Image);
+            formData.append('name', `${bookingId}_${photoType}_${Date.now()}`);
+            
+            // Upload to ImgBB
+            const response = await fetch('https://api.imgbb.com/1/upload', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Client-ID ${IMGUR_CLIENT_ID}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    image: base64Image,
-                    type: 'base64',
-                    name: `${bookingId}_${photoType}_${Date.now()}`
-                })
+                body: formData
             });
             
             if (!response.ok) {
-                throw new Error('Errore upload Imgur');
+                throw new Error('Errore upload ImgBB');
             }
             
             const data = await response.json();
             
             if (!data.success) {
-                throw new Error('Upload Imgur fallito');
+                throw new Error('Upload ImgBB fallito');
             }
             
             // Return the direct link to the image
-            return data.data.link;
+            return data.data.url;
             
         } catch (error) {
-            console.error('Errore upload foto su Imgur:', error);
+            console.error('Errore upload foto su ImgBB:', error);
             throw error;
         }
     };
