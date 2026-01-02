@@ -833,11 +833,11 @@ try {
 
             // --- Density Altitude ---
             const elevationFt = 2820;
-            const PA = (1013 - pressure) * 30 + elevationFt;
+            const PA = elevationFt + (1013.25 - pressure) * 30;
             const T_ISA = 15 - 2 * (elevationFt / 1000);
             const DA = Math.round(PA + 120 * (temp - T_ISA));
 
-            densityAltitudeSpan.textContent = `${DA} ft`;
+            densityAltitudeSpan.textContent = `${DA}`;
             densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
             // --- Grafico ---
