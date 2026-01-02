@@ -43,6 +43,8 @@ try {
     const weatherInfoSpan = document.getElementById('weather-info');
     const densityAltitudeSpan = document.getElementById('density-altitude');
     const meteoChartTitle = document.getElementById('meteo-chart-title');
+    const meteoChartError = document.getElementById('meteo-chart-error');
+    const meteoChartDate = document.getElementById('meteo-chart-date');
     const hourlyScheduleDiv = document.getElementById('hourly-schedule');
     const startTimeInput = document.getElementById('start-time');
     const endTimeInput = document.getElementById('end-time');
@@ -881,10 +883,28 @@ try {
                 }
             });
 
+            // Show canvas and date footer, hide error message
+            canvas.style.display = 'block';
+            meteoChartError.style.display = 'none';
+            meteoChartDate.textContent = `Dati di riferimento: ${dateForTitle}`;
+            meteoChartDate.style.display = 'block';
+
         } catch (err) {
             console.error('Errore caricamento meteo:', err);
             weatherInfoSpan.textContent = "Errore meteo";
             densityAltitudeSpan.textContent = "N/D";
+            
+            // Hide canvas and date footer, show error message
+            const canvas = document.getElementById('meteoChart');
+            canvas.style.display = 'none';
+            meteoChartDate.style.display = 'none';
+            meteoChartError.style.display = 'block';
+            
+            // Destroy existing chart if any
+            if (meteoChart) {
+                meteoChart.destroy();
+                meteoChart = null;
+            }
         }
     };
 
