@@ -209,13 +209,14 @@ hr {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     padding: 8px 10px;
     min-height: 50px;
     box-sizing: border-box;
     position: relative;
     font-size: 0.85em;
     color: #70757a;
-    text-align: left;
+    text-align: center;
     transition: all 0.2s ease;
 }
 .half-hour-slot.free, .half-hour-slot.booked.own-booking-slot {
