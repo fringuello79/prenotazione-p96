@@ -103,6 +103,15 @@ try {
 
         bookingErrorMessage.textContent = '';
 
+        // Verifica se si sta cercando di prenotare in una data passata
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (bookingDate < today && window.currentUserRole !== 'admin') {
+            bookingErrorMessage.textContent = "Non è possibile prenotare in date passate. Solo l'amministratore può farlo.";
+            return;
+        }
+
         if (!startTime || !endTime) {
             bookingErrorMessage.textContent = "Inserisci orario di inizio e fine.";
             return;
@@ -410,6 +419,23 @@ try {
         document.getElementById('hobbs-partenza-photo').value = '';
         document.getElementById('hobbs-arrivo-photo').value = '';
         
+        // Check if we're within 4 hours of booking end (or if admin)
+        const bookingDate = new Date(booking.data.seconds * 1000);
+        const [endHour, endMinute] = booking.ora_fine.split(':').map(Number);
+        const bookingEndTime = new Date(bookingDate);
+        bookingEndTime.setHours(endHour, endMinute, 0, 0);
+        
+        const now = new Date();
+        const fourHoursAfterBooking = new Date(bookingEndTime.getTime() + (4 * 60 * 60 * 1000));
+        const canEditPhotos = now <= fourHoursAfterBooking || window.currentUserRole === 'admin';
+        
+        // Enable/disable photo inputs based on time restriction
+        const partenzaPhotoInput = document.getElementById('hobbs-partenza-photo');
+        const arrivoPhotoInput = document.getElementById('hobbs-arrivo-photo');
+        
+        partenzaPhotoInput.disabled = !canEditPhotos;
+        arrivoPhotoInput.disabled = !canEditPhotos;
+        
         // Show existing photos if available
         if (booking.hobbs_partenza_photo_url) {
             const img = document.createElement('img');
@@ -628,7 +654,19 @@ try {
     };
     
     // Delete booking
-    const deleteBooking = async (bookingId, bookingInfo) => {
+    const deleteBooking = async (bookingId, bookingInfo, bookingData) => {
+        // Verifica se la prenotazione è in una data passata
+        const bookingDate = new Date(bookingData.data.seconds * 1000);
+        bookingDate.setHours(0, 0, 0, 0);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (bookingDate < today && window.currentUserRole !== 'admin') {
+            alert('Non è possibile eliminare prenotazioni di date passate. Solo l\'amministratore può farlo.');
+            return;
+        }
+        
         const confirmMsg = `Vuoi eliminare la prenotazione di ${bookingInfo}?`;
         
         if (confirm(confirmMsg)) {
@@ -673,7 +711,7 @@ try {
             const bookingId = actionButtons.dataset.bookingId;
             const bookingData = JSON.parse(actionButtons.dataset.bookingData);
             const bookingInfo = `${bookingData.socio_nome} (${bookingData.ora_inizio} - ${bookingData.ora_fine})`;
-            deleteBooking(bookingId, bookingInfo);
+            deleteBooking(bookingId, bookingInfo, bookingData);
         });
         
         // Hobbs edit dialog buttons
