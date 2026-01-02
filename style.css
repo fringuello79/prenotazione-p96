@@ -655,11 +655,12 @@ hr {
     right: 20px;
     width: 120px;
     height: auto;
-    opacity: 0.15;
+    opacity: 0.5;
     pointer-events: none;
     z-index: 999;
-    filter: grayscale(20%);
+    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
     transition: opacity 0.3s ease;
+    mix-blend-mode: multiply;
 }
 
 /* Responsive adjustments for airplane watermark */
@@ -668,14 +669,14 @@ hr {
         width: 80px;
         bottom: 10px;
         right: 10px;
-        opacity: 0.1;
+        opacity: 0.4;
     }
 }
 
 @media (max-width: 480px) {
     #airplane-watermark {
         width: 60px;
-        opacity: 0.08;
+        opacity: 0.35;
     }
 }
 }
