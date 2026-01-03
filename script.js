@@ -468,7 +468,10 @@ try {
             const canvas = document.getElementById('meteoChart');
             const ctx = canvas.getContext('2d');
 
-            if (meteoChart) meteoChart.destroy();
+            if (meteoChart) {
+                meteoChart.destroy();
+                meteoChart = null;
+            }
 
             meteoChart = new Chart(ctx, {
                 type: 'line',
@@ -477,7 +480,7 @@ try {
                     datasets: datasets
                 },
                 options: {
-                    responsive: true,
+                    responsive: false,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     stacked: false,
