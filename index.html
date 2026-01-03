@@ -53,12 +53,15 @@
 
             <!-- ⭐ SEZIONE GRAFICO METEO E DA (AGGIUNTA) ⭐ -->
             <div class="meteo-chart-section">
-                <h3 id="meteo-chart-title">Grafico meteo e andamento QNH</h3>
-                <div id="meteo-chart-error" style="display: none; text-align: center; padding: 20px; color: #999; font-style: italic;">
-                    Dati meteo non disponibili per questa data
+                <h3>Grafico Meteo Giornaliero</h3>
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartActual"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartForecast"></canvas>
+                    </div>
                 </div>
-                <canvas id="meteoChart" style="max-width: 900px; margin: 20px auto;"></canvas>
-                <p id="meteo-chart-date" style="text-align: center; font-size: 0.75em; color: #666; margin-top: 5px;"></p>
             </div>
 
             <hr>

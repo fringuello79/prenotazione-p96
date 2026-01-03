@@ -42,9 +42,6 @@ try {
     const sunsetTimeSpan = document.getElementById('sunset-time');
     const weatherInfoSpan = document.getElementById('weather-info');
     const densityAltitudeSpan = document.getElementById('density-altitude');
-    const meteoChartTitle = document.getElementById('meteo-chart-title');
-    const meteoChartError = document.getElementById('meteo-chart-error');
-    const meteoChartDate = document.getElementById('meteo-chart-date');
     const hourlyScheduleDiv = document.getElementById('hourly-schedule');
     const startTimeInput = document.getElementById('start-time');
     const endTimeInput = document.getElementById('end-time');
@@ -756,18 +753,10 @@ try {
 
     // --- METEO + DA (WeatherAPI) ---
     let meteoChart = null;
+    let meteoChartForecast = null;
 
     const loadWeatherData = async () => {
         const formattedDate = currentDisplayDate.toISOString().split('T')[0];
-        
-        // Update the chart title with the actual date
-        const dateForTitle = currentDisplayDate.toLocaleDateString('it-IT', { 
-            weekday: 'long', 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric' 
-        });
-        meteoChartTitle.textContent = `Grafico meteo del ${dateForTitle} e andamento QNH`;
 
         sunriseTimeSpan.textContent = "Caricamento...";
         sunsetTimeSpan.textContent = "Caricamento...";
@@ -797,33 +786,12 @@ try {
         // --- METEO WeatherAPI ---
         try {
             const key = "560c2e928ac34d779ae64228253112";
-            // Add date parameter to get forecast for the specific date
-            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&dt=${formattedDate}&days=1&aqi=no&alerts=no`;
+            // Request 3 days to get forecast data for future days
+            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&days=3&aqi=no&alerts=no`;
 
             const res = await fetch(url);
             const meteoData = await res.json();
 
-            // Check if the response contains an error
-            if (meteoData.error) {
-                throw new Error(`Weather API error: ${meteoData.error.message || 'Unknown error'}`);
-            }
-
-            // Validate required data exists
-            if (!meteoData.current) {
-                throw new Error('Dati meteo correnti non disponibili');
-            }
-            
-            if (!meteoData.forecast || !meteoData.forecast.forecastday || !meteoData.forecast.forecastday[0]) {
-                throw new Error('Dati previsione meteo non disponibili');
-            }
-            
-            const forecastDay = meteoData.forecast.forecastday[0];
-            
-            if (!forecastDay.hour) {
-                throw new Error('Dati orari meteo non disponibili');
-            }
-
-            // Use CURRENT weather data (always today's actual conditions, not forecast)
             const temp = meteoData.current.temp_c;
             const windSpeed = meteoData.current.wind_kph / 1.852;
             const windDir = meteoData.current.wind_degree;
@@ -832,7 +800,7 @@ try {
             weatherInfoSpan.textContent =
                 `${temp}°C, vento ${windSpeed.toFixed(0)} kt da ${degToCompass(windDir)}, QNH ${pressure} hPa`;
 
-            // --- Density Altitude (always based on CURRENT conditions, not date-dependent) ---
+            // --- Density Altitude ---
             const elevationFt = 2200;
             const PA = elevationFt + (1013.25 - pressure) * 30;
             const T_ISA = 15 - 1.98 * (elevationFt / 1000);
@@ -841,90 +809,325 @@ try {
             densityAltitudeSpan.textContent = `${DA}`;
             densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
-            // --- Grafico (show only actual data up to current time, not future forecasts) ---
-            const now = new Date();
-            const isToday = formattedDate === now.toISOString().split('T')[0];
-            
-            const forecastHours = forecastDay.hour;
-            let filteredHours = forecastHours;
-            
-            // If viewing today, only show data up to current hour (no future forecasts)
-            if (isToday) {
-                const currentHour = now.getHours();
-                filteredHours = forecastHours.filter(h => {
-                    const hourTime = parseInt(h.time.split(" ")[1].split(":")[0]);
-                    return hourTime <= currentHour;
-                });
-            }
-            
-            // If no data available for filtered hours, show at least current hour
-            if (filteredHours.length === 0 && isToday) {
-                filteredHours = [forecastHours[now.getHours()]].filter(Boolean);
-            }
-            
-            const hours = filteredHours.map(h => h.time.split(" ")[1]);
-            const temps = filteredHours.map(h => h.temp_c);
-            const pressures = filteredHours.map(h => h.pressure_mb);
-
-            const canvas = document.getElementById('meteoChart');
-            const ctx = canvas.getContext('2d');
-
-            if (meteoChart) meteoChart.destroy();
-
-            meteoChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: hours,
-                    datasets: [
-                        {
-                            label: 'Temperatura (°C)',
-                            data: temps,
-                            borderColor: 'red',
-                            yAxisID: 'y1',
-                            tension: 0.2
-                        },
-                        {
-                            label: 'QNH (hPa)',
-                            data: pressures,
-                            borderColor: 'blue',
-                            yAxisID: 'y2',
-                            tension: 0.2
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    interaction: { mode: 'index', intersect: false },
-                    stacked: false,
-                    scales: {
-                        y1: { type: 'linear', position: 'left' },
-                        y2: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
-                    }
-                }
-            });
-
-            // Show canvas and date footer, hide error message
-            canvas.style.display = 'block';
-            meteoChartError.style.display = 'none';
-            meteoChartDate.textContent = `Dati di riferimento: ${dateForTitle}`;
-            meteoChartDate.style.display = 'block';
+            // --- Render Charts ---
+            renderWeatherCharts(meteoData, currentDisplayDate);
 
         } catch (err) {
             console.error('Errore caricamento meteo:', err);
             weatherInfoSpan.textContent = "Errore meteo";
             densityAltitudeSpan.textContent = "N/D";
+        }
+    };
+
+    const renderWeatherCharts = (meteoData, selectedDate) => {
+        const now = new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDay = new Date(selectedDate);
+        selectedDay.setHours(0, 0, 0, 0);
+
+        // Determine which day's data to use from the forecast
+        const dayDiff = Math.floor((selectedDay - today) / (1000 * 60 * 60 * 24));
+        
+        // Find the correct forecast day
+        let dayData = null;
+        if (dayDiff >= 0 && dayDiff < meteoData.forecast.forecastday.length) {
+            dayData = meteoData.forecast.forecastday[dayDiff];
+        } else if (dayDiff < 0) {
+            // For past days, use current day data (won't have actual past data from API)
+            dayData = meteoData.forecast.forecastday[0];
+        }
+
+        if (!dayData) {
+            console.error("No forecast data available for selected date");
+            return;
+        }
+
+        const allHours = dayData.hour;
+        
+        // Determine if this is today, past, or future
+        const isPast = selectedDay < today;
+        const isToday = selectedDay.getTime() === today.getTime();
+        const isFuture = selectedDay > today;
+
+        // Destroy existing charts
+        if (meteoChart) {
+            meteoChart.destroy();
+            meteoChart = null;
+        }
+        if (meteoChartForecast) {
+            meteoChartForecast.destroy();
+            meteoChartForecast = null;
+        }
+
+        if (isToday) {
+            // For today: create two side-by-side charts
+            const currentHour = now.getHours();
             
-            // Hide canvas and date footer, show error message
-            const canvas = document.getElementById('meteoChart');
-            canvas.style.display = 'none';
-            meteoChartDate.style.display = 'none';
-            meteoChartError.style.display = 'block';
-            
-            // Destroy existing chart if any
-            if (meteoChart) {
-                meteoChart.destroy();
-                meteoChart = null;
-            }
+            // Actual data: from start of day to current hour (inclusive)
+            // Filter based on actual hour from time string, not array index
+            const actualData = allHours.filter(h => {
+                const hour = parseInt(h.time.split(" ")[1].split(":")[0]);
+                return hour <= currentHour;
+            });
+            const actualLabels = actualData.map(h => h.time.split(" ")[1]);
+            const actualTemps = actualData.map(h => h.temp_c);
+            const actualPressures = actualData.map(h => h.pressure_mb);
+
+            // Forecast data: from current hour (exclusive) to end of day
+            // Filter based on actual hour from time string, not array index
+            const forecastData = allHours.filter(h => {
+                const hour = parseInt(h.time.split(" ")[1].split(":")[0]);
+                return hour > currentHour;
+            });
+            const forecastLabels = forecastData.map(h => h.time.split(" ")[1]);
+            const forecastTemps = forecastData.map(h => h.temp_c);
+            const forecastPressures = forecastData.map(h => h.pressure_mb);
+
+            // Show both chart containers
+            document.getElementById('meteoChartActual').style.display = 'block';
+            document.getElementById('meteoChartForecast').style.display = 'block';
+
+            // Create actual data chart
+            const ctxActual = document.getElementById('meteoChartActual').getContext('2d');
+            meteoChart = new Chart(ctxActual, {
+                type: 'line',
+                data: {
+                    labels: actualLabels,
+                    datasets: [
+                        {
+                            label: 'Temperatura (°C)',
+                            data: actualTemps,
+                            borderColor: 'rgba(255, 0, 0, 1)',
+                            backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'QNH (hPa)',
+                            data: actualPressures,
+                            borderColor: 'rgba(0, 0, 255, 1)',
+                            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                            yAxisID: 'y2',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Dati Reali (fino ad ora)'
+                        }
+                    },
+                    scales: {
+                        y1: { 
+                            type: 'linear', 
+                            position: 'left',
+                            title: { display: true, text: 'Temperatura (°C)' }
+                        },
+                        y2: { 
+                            type: 'linear', 
+                            position: 'right',
+                            title: { display: true, text: 'QNH (hPa)' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+            // Create forecast chart
+            const ctxForecast = document.getElementById('meteoChartForecast').getContext('2d');
+            meteoChartForecast = new Chart(ctxForecast, {
+                type: 'line',
+                data: {
+                    labels: forecastLabels,
+                    datasets: [
+                        {
+                            label: 'Temperatura Prevista (°C)',
+                            data: forecastTemps,
+                            borderColor: 'rgba(255, 0, 0, 0.5)',
+                            backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        },
+                        {
+                            label: 'QNH Previsto (hPa)',
+                            data: forecastPressures,
+                            borderColor: 'rgba(0, 0, 255, 0.5)',
+                            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                            yAxisID: 'y2',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Previsione (da ora a fine giornata)'
+                        }
+                    },
+                    scales: {
+                        y1: { 
+                            type: 'linear', 
+                            position: 'left',
+                            title: { display: true, text: 'Temperatura (°C)' }
+                        },
+                        y2: { 
+                            type: 'linear', 
+                            position: 'right',
+                            title: { display: true, text: 'QNH (hPa)' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+        } else if (isPast) {
+            // For past days: show all data as actual (solid colors)
+            // Note: API doesn't provide real historical data, so this will show forecast data
+            document.getElementById('meteoChartActual').style.display = 'block';
+            document.getElementById('meteoChartForecast').style.display = 'none';
+
+            const labels = allHours.map(h => h.time.split(" ")[1]);
+            const temps = allHours.map(h => h.temp_c);
+            const pressures = allHours.map(h => h.pressure_mb);
+
+            const ctxActual = document.getElementById('meteoChartActual').getContext('2d');
+            meteoChart = new Chart(ctxActual, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Temperatura (°C)',
+                            data: temps,
+                            borderColor: 'rgba(255, 0, 0, 1)',
+                            backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'QNH (hPa)',
+                            data: pressures,
+                            borderColor: 'rgba(0, 0, 255, 1)',
+                            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                            yAxisID: 'y2',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Dati Giornalieri (Storico non disponibile)'
+                        }
+                    },
+                    scales: {
+                        y1: { 
+                            type: 'linear', 
+                            position: 'left',
+                            title: { display: true, text: 'Temperatura (°C)' }
+                        },
+                        y2: { 
+                            type: 'linear', 
+                            position: 'right',
+                            title: { display: true, text: 'QNH (hPa)' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+        } else if (isFuture) {
+            // For future days: show all data as forecast (semi-transparent/dashed)
+            document.getElementById('meteoChartActual').style.display = 'block';
+            document.getElementById('meteoChartForecast').style.display = 'none';
+
+            const labels = allHours.map(h => h.time.split(" ")[1]);
+            const temps = allHours.map(h => h.temp_c);
+            const pressures = allHours.map(h => h.pressure_mb);
+
+            const ctxActual = document.getElementById('meteoChartActual').getContext('2d');
+            meteoChart = new Chart(ctxActual, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Temperatura Prevista (°C)',
+                            data: temps,
+                            borderColor: 'rgba(255, 0, 0, 0.5)',
+                            backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        },
+                        {
+                            label: 'QNH Previsto (hPa)',
+                            data: pressures,
+                            borderColor: 'rgba(0, 0, 255, 0.5)',
+                            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                            yAxisID: 'y2',
+                            tension: 0.2,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Previsione Giornaliera'
+                        }
+                    },
+                    scales: {
+                        y1: { 
+                            type: 'linear', 
+                            position: 'left',
+                            title: { display: true, text: 'Temperatura (°C)' }
+                        },
+                        y2: { 
+                            type: 'linear', 
+                            position: 'right',
+                            title: { display: true, text: 'QNH (hPa)' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
         }
     };
 
