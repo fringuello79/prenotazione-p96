@@ -359,7 +359,7 @@ try {
         // --- METEO WeatherAPI ---
         try {
             const key = "560c2e928ac34d779ae64228253112";
-            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&days=1&aqi=no&alerts=no`;
+            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&days=3&aqi=no&alerts=no`;
 
             const res = await fetch(url);
             const meteoData = await res.json();
@@ -381,10 +381,48 @@ try {
             densityAltitudeSpan.textContent = `${DA} ft`;
             densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
-            // --- Grafico ---
-            const hours = meteoData.forecast.forecastday[0].hour.map(h => h.time.split(" ")[1]);
-            const temps = meteoData.forecast.forecastday[0].hour.map(h => h.temp_c);
-            const pressures = meteoData.forecast.forecastday[0].hour.map(h => h.pressure_mb);
+            // --- Grafico con dati storici e previsionali ---
+            const now = new Date();
+            const allHours = [];
+            const allTemps = [];
+            const allPressures = [];
+
+            // Raccoglie tutti i dati orari per 3 giorni
+            meteoData.forecast.forecastday.forEach(day => {
+                day.hour.forEach(h => {
+                    const hourTime = new Date(h.time);
+                    allHours.push(hourTime);
+                    allTemps.push(h.temp_c);
+                    allPressures.push(h.pressure_mb);
+                });
+            });
+
+            // Separa dati reali (passati/attuali) da previsionali (futuri)
+            const labels = [];
+            const tempsPast = [];
+            const tempsFuture = [];
+            const pressuresPast = [];
+            const pressuresFuture = [];
+
+            allHours.forEach((hourTime, index) => {
+                const label = hourTime.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + 
+                              hourTime.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                labels.push(label);
+
+                if (hourTime <= now) {
+                    // Dati passati/attuali
+                    tempsPast.push(allTemps[index]);
+                    tempsFuture.push(null);
+                    pressuresPast.push(allPressures[index]);
+                    pressuresFuture.push(null);
+                } else {
+                    // Dati previsionali
+                    tempsPast.push(null);
+                    tempsFuture.push(allTemps[index]);
+                    pressuresPast.push(null);
+                    pressuresFuture.push(allPressures[index]);
+                }
+            });
 
             const canvas = document.getElementById('meteoChart');
             const ctx = canvas.getContext('2d');
@@ -394,31 +432,103 @@ try {
             meteoChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: hours,
+                    labels: labels,
                     datasets: [
                         {
-                            label: 'Temperatura (°C)',
-                            data: temps,
-                            borderColor: 'red',
+                            label: 'Temp. Reale (°C)',
+                            data: tempsPast,
+                            borderColor: 'rgba(255, 0, 0, 1)',
+                            backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                            borderWidth: 2,
                             yAxisID: 'y1',
-                            tension: 0.2
+                            tension: 0.2,
+                            spanGaps: false
                         },
                         {
-                            label: 'QNH (hPa)',
-                            data: pressures,
-                            borderColor: 'blue',
+                            label: 'Temp. Previsionale (°C)',
+                            data: tempsFuture,
+                            borderColor: 'rgba(255, 150, 150, 1)',
+                            backgroundColor: 'rgba(255, 150, 150, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            yAxisID: 'y1',
+                            tension: 0.2,
+                            spanGaps: false
+                        },
+                        {
+                            label: 'QNH Reale (hPa)',
+                            data: pressuresPast,
+                            borderColor: 'rgba(0, 0, 255, 1)',
+                            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                            borderWidth: 2,
                             yAxisID: 'y2',
-                            tension: 0.2
+                            tension: 0.2,
+                            spanGaps: false
+                        },
+                        {
+                            label: 'QNH Previsionale (hPa)',
+                            data: pressuresFuture,
+                            borderColor: 'rgba(150, 150, 255, 1)',
+                            backgroundColor: 'rgba(150, 150, 255, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            yAxisID: 'y2',
+                            tension: 0.2,
+                            spanGaps: false
                         }
                     ]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
                     interaction: { mode: 'index', intersect: false },
-                    stacked: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 20,
+                                font: { size: 10 },
+                                padding: 10
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                }
+                            }
+                        }
+                    },
                     scales: {
-                        y1: { type: 'linear', position: 'left' },
-                        y2: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: { size: 9 }
+                            }
+                        },
+                        y1: { 
+                            type: 'linear', 
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Temperatura (°C)',
+                                font: { size: 10 }
+                            },
+                            ticks: { font: { size: 9 } }
+                        },
+                        y2: { 
+                            type: 'linear', 
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'QNH (hPa)',
+                                font: { size: 10 }
+                            },
+                            grid: { drawOnChartArea: false },
+                            ticks: { font: { size: 9 } }
+                        }
                     }
                 }
             });
