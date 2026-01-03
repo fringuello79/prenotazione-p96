@@ -440,13 +440,21 @@ try {
             const currentHour = now.getHours();
             
             // Actual data: from start of day to current hour (inclusive)
-            const actualData = allHours.filter((h, idx) => idx <= currentHour);
+            // Filter based on actual hour from time string, not array index
+            const actualData = allHours.filter(h => {
+                const hour = parseInt(h.time.split(" ")[1].split(":")[0]);
+                return hour <= currentHour;
+            });
             const actualLabels = actualData.map(h => h.time.split(" ")[1]);
             const actualTemps = actualData.map(h => h.temp_c);
             const actualPressures = actualData.map(h => h.pressure_mb);
 
             // Forecast data: from current hour (exclusive) to end of day
-            const forecastData = allHours.filter((h, idx) => idx > currentHour);
+            // Filter based on actual hour from time string, not array index
+            const forecastData = allHours.filter(h => {
+                const hour = parseInt(h.time.split(" ")[1].split(":")[0]);
+                return hour > currentHour;
+            });
             const forecastLabels = forecastData.map(h => h.time.split(" ")[1]);
             const forecastTemps = forecastData.map(h => h.temp_c);
             const forecastPressures = forecastData.map(h => h.pressure_mb);
