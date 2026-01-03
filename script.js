@@ -9,6 +9,10 @@ const firebaseConfig = {
   measurementId: "G-PMEG5ZLMLZ"
 };
 
+// ImgBB API Configuration
+// IMPORTANTE: La tua API Key di ImgBB
+const IMGBB_API_KEY = '63a0e961fb3af5dada39106e441a29e9';
+
 try {
     const app = firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
@@ -38,6 +42,9 @@ try {
     const sunsetTimeSpan = document.getElementById('sunset-time');
     const weatherInfoSpan = document.getElementById('weather-info');
     const densityAltitudeSpan = document.getElementById('density-altitude');
+    const meteoChartTitle = document.getElementById('meteo-chart-title');
+    const meteoChartError = document.getElementById('meteo-chart-error');
+    const meteoChartDate = document.getElementById('meteo-chart-date');
     const hourlyScheduleDiv = document.getElementById('hourly-schedule');
     const startTimeInput = document.getElementById('start-time');
     const endTimeInput = document.getElementById('end-time');
@@ -98,6 +105,15 @@ try {
         bookingDate.setHours(0, 0, 0, 0);
 
         bookingErrorMessage.textContent = '';
+
+        // Verifica se si sta cercando di prenotare in una data passata
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (bookingDate < today && window.currentUserRole !== 'admin') {
+            bookingErrorMessage.textContent = "Non è possibile prenotare in date passate. Solo l'amministratore può farlo.";
+            return;
+        }
 
         if (!startTime || !endTime) {
             bookingErrorMessage.textContent = "Inserisci orario di inizio e fine.";
@@ -197,7 +213,8 @@ try {
     const renderHourlySchedule = (allBookings) => {
         hourlyScheduleDiv.innerHTML = '';
 
-        for (let hour = 0; hour < 24; hour++) {
+        // Skip hours that are always dark even in summer (0-5 and 22-23)
+        for (let hour = 6; hour <= 21; hour++) {
             const hourBlock = document.createElement('div');
             hourBlock.classList.add('hour-block');
 
@@ -242,6 +259,7 @@ try {
                 let bookingIdForSlot = null;
                 let socioIdForSlot = null;
                 let isBookedByCurrentUser = false;
+                let bookingDataForSlot = null;
 
                 for (const booking of allBookings) {
                     const bookingStart = new Date(currentDisplayDate);
@@ -256,6 +274,7 @@ try {
                         bookedInfo = booking.socio_nome || 'Socio Sconosciuto';
                         bookingIdForSlot = booking.id;
                         socioIdForSlot = booking.socio_id;
+                        bookingDataForSlot = booking;
                         if (window.currentUser && booking.socio_id === window.currentUser.uid) {
                             isBookedByCurrentUser = true;
                         }
@@ -271,27 +290,32 @@ try {
                     if (isBookedByCurrentUser) {
                         slot.classList.add('own-booking-slot');
                     }
-                    slot.innerHTML = `<div class="slot-content">${bookedInfo}</div>`;
+                    
+                    // Build slot content with Hobbs data if available
+                    let slotHTML = `<div class="slot-content">${bookedInfo}`;
+                    if (bookingDataForSlot && (bookingDataForSlot.hobbs_partenza || bookingDataForSlot.hobbs_arrivo)) {
+                        slotHTML += `<div class="hobbs-info">`;
+                        if (bookingDataForSlot.hobbs_partenza) {
+                            slotHTML += `<span>P: ${bookingDataForSlot.hobbs_partenza}</span>`;
+                        }
+                        if (bookingDataForSlot.hobbs_arrivo) {
+                            slotHTML += `<span>A: ${bookingDataForSlot.hobbs_arrivo}</span>`;
+                        }
+                        slotHTML += `</div>`;
+                    }
+                    slotHTML += `</div>`;
+                    slot.innerHTML = slotHTML;
 
-                    if (window.currentUser && (isBookedByCurrentUser || window.currentUserRole === 'admin')) {
+                    if (window.currentUser) {
                         slot.style.cursor = 'pointer';
-                        slot.addEventListener('click', async () => {
-                            const bId = slot.dataset.bookingId;
-                            const bookedSocioId = slot.dataset.socioId;
-
-                            let confirmationMessage = `Vuoi annullare la prenotazione di ${bookedInfo}?`;
-                            if (window.currentUserRole === 'admin' && window.currentUser.uid !== bookedSocioId) {
-                                confirmationMessage = `Sei amministratore. Vuoi annullare la prenotazione di ${bookedInfo}?`;
-                            }
-
-                            if (confirm(confirmationMessage)) {
-                                try {
-                                    await db.collection('bookings').doc(bId).delete();
-                                    alert("Prenotazione annullata con successo!");
-                                } catch (error) {
-                                    alert("Errore nell'annullare la prenotazione: " + error.message);
-                                }
-                            }
+                        
+                        // Store booking data for event handlers
+                        slot.bookingData = bookingDataForSlot;
+                        slot.isOwner = isBookedByCurrentUser;
+                        
+                        // Simple click - show details dialog
+                        slot.addEventListener('click', () => {
+                            showBookingDetails(slot.bookingData, slot.isOwner);
                         });
                     }
 
@@ -325,11 +349,425 @@ try {
         }
     };
 
+    // --- Helper Functions for Hobbs Meter ---
+    
+    // Show booking details dialog (visible to all)
+    const showBookingDetails = (booking, isOwner) => {
+        const dialog = document.getElementById('booking-details-dialog');
+        const dateStr = formatDateFull(currentDisplayDate);
+        
+        document.getElementById('detail-socio').textContent = booking.socio_nome || 'Socio Sconosciuto';
+        document.getElementById('detail-date').textContent = dateStr;
+        document.getElementById('detail-time').textContent = `${booking.ora_inizio} - ${booking.ora_fine}`;
+        
+        const hobbsP = booking.hobbs_partenza;
+        const hobbsA = booking.hobbs_arrivo;
+        
+        document.getElementById('detail-hobbs-partenza').textContent = hobbsP ? hobbsP : 'Non registrato';
+        document.getElementById('detail-hobbs-arrivo').textContent = hobbsA ? hobbsA : 'Non registrato';
+        
+        // Show photos if available
+        const partenzaPhotoContainer = document.getElementById('detail-hobbs-partenza-photo-container');
+        const arrivoPhotoContainer = document.getElementById('detail-hobbs-arrivo-photo-container');
+        
+        if (booking.hobbs_partenza_photo_url) {
+            document.getElementById('detail-hobbs-partenza-photo').src = booking.hobbs_partenza_photo_url;
+            partenzaPhotoContainer.style.display = 'block';
+        } else {
+            partenzaPhotoContainer.style.display = 'none';
+        }
+        
+        if (booking.hobbs_arrivo_photo_url) {
+            document.getElementById('detail-hobbs-arrivo-photo').src = booking.hobbs_arrivo_photo_url;
+            arrivoPhotoContainer.style.display = 'block';
+        } else {
+            arrivoPhotoContainer.style.display = 'none';
+        }
+        
+        if (hobbsP && hobbsA) {
+            const duration = (parseFloat(hobbsA) - parseFloat(hobbsP)).toFixed(1);
+            document.getElementById('detail-hobbs-duration').textContent = `${duration} ore`;
+        } else {
+            document.getElementById('detail-hobbs-duration').textContent = '-';
+        }
+        
+        // Show/hide action buttons based on ownership or admin role
+        const actionButtons = document.getElementById('booking-action-buttons');
+        if (isOwner || window.currentUserRole === 'admin') {
+            actionButtons.style.display = 'flex';
+            actionButtons.dataset.bookingId = booking.id;
+            actionButtons.dataset.bookingData = JSON.stringify(booking);
+        } else {
+            actionButtons.style.display = 'none';
+        }
+        
+        dialog.style.display = 'flex';
+    };
+    
+    // Show Hobbs edit dialog
+    const showHobbsEditDialog = (booking) => {
+        const dialog = document.getElementById('hobbs-edit-dialog');
+        const infoText = `${booking.socio_nome} - ${booking.ora_inizio} - ${booking.ora_fine}`;
+        
+        document.getElementById('edit-booking-info').textContent = infoText;
+        document.getElementById('hobbs-partenza-input').value = booking.hobbs_partenza || '';
+        document.getElementById('hobbs-arrivo-input').value = booking.hobbs_arrivo || '';
+        document.getElementById('hobbs-error-message').textContent = '';
+        
+        // Clear photo previews
+        document.getElementById('hobbs-partenza-photo-preview').innerHTML = '';
+        document.getElementById('hobbs-arrivo-photo-preview').innerHTML = '';
+        
+        // Clear file inputs
+        document.getElementById('hobbs-partenza-photo').value = '';
+        document.getElementById('hobbs-arrivo-photo').value = '';
+        
+        // Check if we're within 4 hours of booking end (or if admin)
+        const bookingDate = new Date(booking.data.seconds * 1000);
+        const [endHour, endMinute] = booking.ora_fine.split(':').map(Number);
+        const bookingEndTime = new Date(bookingDate);
+        bookingEndTime.setHours(endHour, endMinute, 0, 0);
+        
+        const now = new Date();
+        const fourHoursAfterBooking = new Date(bookingEndTime.getTime() + (4 * 60 * 60 * 1000));
+        const canEditPhotos = now <= fourHoursAfterBooking || window.currentUserRole === 'admin';
+        
+        // Enable/disable photo inputs based on time restriction
+        const partenzaPhotoInput = document.getElementById('hobbs-partenza-photo');
+        const arrivoPhotoInput = document.getElementById('hobbs-arrivo-photo');
+        
+        partenzaPhotoInput.disabled = !canEditPhotos;
+        arrivoPhotoInput.disabled = !canEditPhotos;
+        
+        // Show existing photos if available
+        if (booking.hobbs_partenza_photo_url) {
+            const img = document.createElement('img');
+            img.src = booking.hobbs_partenza_photo_url;
+            document.getElementById('hobbs-partenza-photo-preview').appendChild(img);
+        }
+        
+        if (booking.hobbs_arrivo_photo_url) {
+            const img = document.createElement('img');
+            img.src = booking.hobbs_arrivo_photo_url;
+            document.getElementById('hobbs-arrivo-photo-preview').appendChild(img);
+        }
+        
+        // Store booking ID and data for saving
+        dialog.dataset.bookingId = booking.id;
+        dialog.dataset.bookingData = JSON.stringify(booking);
+        
+        dialog.style.display = 'flex';
+    };
+    
+    // Helper function to upload photo to ImgBB
+    const uploadPhoto = async (file, bookingId, photoType) => {
+        if (!file) return null;
+        
+        try {
+            // Convert file to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve, reject) => {
+                reader.onload = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            
+            const base64Image = await base64Promise;
+            
+            // Create FormData for ImgBB API
+            const formData = new FormData();
+            formData.append('key', IMGBB_API_KEY);
+            formData.append('image', base64Image);
+            formData.append('name', `${bookingId}_${photoType}_${Date.now()}`);
+            
+            // Upload to ImgBB
+            const response = await fetch('https://api.imgbb.com/1/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('Errore upload ImgBB');
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error('Upload ImgBB fallito');
+            }
+            
+            // Return the direct link to the image
+            return data.data.url;
+            
+        } catch (error) {
+            console.error('Errore upload foto su ImgBB:', error);
+            throw error;
+        }
+    };
+    
+    // Helper function to find consecutive bookings
+    const findConsecutiveBookings = async (currentBooking) => {
+        const bookingDate = currentBooking.data;
+        const userId = window.currentUser.uid;
+        
+        // Query bookings for the same date and user
+        const snapshot = await db.collection('bookings')
+            .where('data', '==', bookingDate)
+            .where('socio_id', '==', userId)
+            .get();
+        
+        if (snapshot.empty) return [];
+        
+        // Sort bookings by start time
+        const bookings = [];
+        snapshot.forEach(doc => {
+            bookings.push({ id: doc.id, ...doc.data() });
+        });
+        bookings.sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+        
+        // Find consecutive group
+        const consecutiveGroup = [currentBooking];
+        const currentIndex = bookings.findIndex(b => b.id === currentBooking.id);
+        
+        // Look forward
+        for (let i = currentIndex + 1; i < bookings.length; i++) {
+            const prevEnd = bookings[i-1].ora_fine;
+            const currStart = bookings[i].ora_inizio;
+            if (prevEnd === currStart) {
+                consecutiveGroup.push(bookings[i]);
+            } else {
+                break;
+            }
+        }
+        
+        // Look backward
+        for (let i = currentIndex - 1; i >= 0; i--) {
+            const currEnd = bookings[i].ora_fine;
+            const nextStart = bookings[i+1].ora_inizio;
+            if (currEnd === nextStart) {
+                consecutiveGroup.unshift(bookings[i]);
+            } else {
+                break;
+            }
+        }
+        
+        return consecutiveGroup.length > 1 ? consecutiveGroup : [];
+    };
+    
+    // Save Hobbs data
+    const saveHobbsData = async () => {
+        const dialog = document.getElementById('hobbs-edit-dialog');
+        const bookingId = dialog.dataset.bookingId;
+        const hobbsP = document.getElementById('hobbs-partenza-input').value;
+        const hobbsA = document.getElementById('hobbs-arrivo-input').value;
+        const errorMsg = document.getElementById('hobbs-error-message');
+        
+        const partenzaPhotoFile = document.getElementById('hobbs-partenza-photo').files[0];
+        const arrivoPhotoFile = document.getElementById('hobbs-arrivo-photo').files[0];
+        
+        errorMsg.textContent = '';
+        
+        // Check if user is authenticated
+        if (!window.currentUser) {
+            errorMsg.textContent = 'Devi essere autenticato per salvare i dati';
+            return;
+        }
+        
+        // Validation
+        if (hobbsP && hobbsA) {
+            const p = parseFloat(hobbsP);
+            const a = parseFloat(hobbsA);
+            if (a <= p) {
+                errorMsg.textContent = 'Hobbs Arrivo deve essere maggiore di Hobbs Partenza';
+                return;
+            }
+        }
+        
+        try {
+            errorMsg.textContent = 'Salvataggio in corso...';
+            
+            // First, verify the booking belongs to the current user
+            const bookingDoc = await db.collection('bookings').doc(bookingId).get();
+            
+            if (!bookingDoc.exists) {
+                errorMsg.textContent = 'Prenotazione non trovata';
+                return;
+            }
+            
+            const bookingData = { id: bookingId, ...bookingDoc.data() };
+            
+            // Check if user owns this booking or is admin
+            if (bookingData.socio_id !== window.currentUser.uid && window.currentUserRole !== 'admin') {
+                errorMsg.textContent = 'Non hai i permessi per modificare questa prenotazione';
+                return;
+            }
+            
+            // Upload photos if provided
+            let partenzaPhotoURL = bookingData.hobbs_partenza_photo_url || null;
+            let arrivoPhotoURL = bookingData.hobbs_arrivo_photo_url || null;
+            
+            if (partenzaPhotoFile) {
+                partenzaPhotoURL = await uploadPhoto(partenzaPhotoFile, bookingId, 'partenza');
+            }
+            
+            if (arrivoPhotoFile) {
+                arrivoPhotoURL = await uploadPhoto(arrivoPhotoFile, bookingId, 'arrivo');
+            }
+            
+            // Check for consecutive bookings
+            const consecutiveBookings = await findConsecutiveBookings(bookingData);
+            
+            let applyToAll = false;
+            if (consecutiveBookings.length > 0) {
+                const timeRange = `${consecutiveBookings[0].ora_inizio} - ${consecutiveBookings[consecutiveBookings.length-1].ora_fine}`;
+                applyToAll = confirm(
+                    `Hai ${consecutiveBookings.length} prenotazioni consecutive (${timeRange}).\n\n` +
+                    `Vuoi applicare questi dati Hobbs a tutte le prenotazioni consecutive?`
+                );
+            }
+            
+            // Prepare update data
+            const updateData = {
+                hobbs_partenza: hobbsP || null,
+                hobbs_arrivo: hobbsA || null,
+                hobbs_partenza_photo_url: partenzaPhotoURL,
+                hobbs_arrivo_photo_url: arrivoPhotoURL
+            };
+            
+            // Update the current booking
+            await db.collection('bookings').doc(bookingId).update(updateData);
+            
+            // Update consecutive bookings if user agreed
+            if (applyToAll && consecutiveBookings.length > 0) {
+                const updatePromises = consecutiveBookings
+                    .filter(b => b.id !== bookingId)
+                    .map(b => db.collection('bookings').doc(b.id).update(updateData));
+                
+                await Promise.all(updatePromises);
+            }
+            
+            dialog.style.display = 'none';
+        } catch (error) {
+            console.error('Errore Hobbs:', error);
+            errorMsg.textContent = 'Errore nel salvataggio: ' + error.message;
+        }
+    };
+    
+    // Delete booking
+    const deleteBooking = async (bookingId, bookingInfo, bookingData) => {
+        // Verifica se la prenotazione è in una data passata
+        const bookingDate = new Date(bookingData.data.seconds * 1000);
+        bookingDate.setHours(0, 0, 0, 0);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (bookingDate < today && window.currentUserRole !== 'admin') {
+            alert('Non è possibile eliminare prenotazioni di date passate. Solo l\'amministratore può farlo.');
+            return;
+        }
+        
+        const confirmMsg = `Vuoi eliminare la prenotazione di ${bookingInfo}?`;
+        
+        if (confirm(confirmMsg)) {
+            try {
+                await db.collection('bookings').doc(bookingId).delete();
+                document.getElementById('booking-details-dialog').style.display = 'none';
+            } catch (error) {
+                alert('Errore nell\'eliminazione: ' + error.message);
+            }
+        }
+    };
+    
+    // Setup dialog event listeners
+    const setupDialogListeners = () => {
+        // Close buttons
+        document.querySelectorAll('.close-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.modal').style.display = 'none';
+            });
+        });
+        
+        // Close on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+        
+        // Edit Hobbs button in details dialog
+        document.getElementById('edit-hobbs-from-details').addEventListener('click', () => {
+            const actionButtons = document.getElementById('booking-action-buttons');
+            const bookingData = JSON.parse(actionButtons.dataset.bookingData);
+            document.getElementById('booking-details-dialog').style.display = 'none';
+            showHobbsEditDialog(bookingData);
+        });
+        
+        // Delete button in details dialog
+        document.getElementById('delete-from-details').addEventListener('click', () => {
+            const actionButtons = document.getElementById('booking-action-buttons');
+            const bookingId = actionButtons.dataset.bookingId;
+            const bookingData = JSON.parse(actionButtons.dataset.bookingData);
+            const bookingInfo = `${bookingData.socio_nome} (${bookingData.ora_inizio} - ${bookingData.ora_fine})`;
+            deleteBooking(bookingId, bookingInfo, bookingData);
+        });
+        
+        // Hobbs edit dialog buttons
+        document.getElementById('save-hobbs-button').addEventListener('click', saveHobbsData);
+        document.getElementById('cancel-hobbs-button').addEventListener('click', () => {
+            document.getElementById('hobbs-edit-dialog').style.display = 'none';
+        });
+        
+        // Photo preview handlers
+        document.getElementById('hobbs-partenza-photo').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const preview = document.getElementById('hobbs-partenza-photo-preview');
+            
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    preview.innerHTML = `<img src="${event.target.result}" alt="Preview Partenza">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        document.getElementById('hobbs-arrivo-photo').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const preview = document.getElementById('hobbs-arrivo-photo-preview');
+            
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    preview.innerHTML = `<img src="${event.target.result}" alt="Preview Arrivo">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    };
+    
+    // Initialize dialog listeners
+    setupDialogListeners();
+
     // --- METEO + DA (WeatherAPI) ---
     let meteoChart = null;
 
     const loadWeatherData = async () => {
         const formattedDate = currentDisplayDate.toISOString().split('T')[0];
+        
+        // Update the chart title with the actual date
+        const dateForTitle = currentDisplayDate.toLocaleDateString('it-IT', { 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        });
+        meteoChartTitle.textContent = `Grafico meteo del ${dateForTitle} e andamento QNH`;
 
         sunriseTimeSpan.textContent = "Caricamento...";
         sunsetTimeSpan.textContent = "Caricamento...";
@@ -359,11 +797,33 @@ try {
         // --- METEO WeatherAPI ---
         try {
             const key = "560c2e928ac34d779ae64228253112";
-            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&days=1&aqi=no&alerts=no`;
+            // Add date parameter to get forecast for the specific date
+            const url = `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${CELANO_LAT},${CELANO_LNG}&dt=${formattedDate}&days=1&aqi=no&alerts=no`;
 
             const res = await fetch(url);
             const meteoData = await res.json();
 
+            // Check if the response contains an error
+            if (meteoData.error) {
+                throw new Error(`Weather API error: ${meteoData.error.message || 'Unknown error'}`);
+            }
+
+            // Validate required data exists
+            if (!meteoData.current) {
+                throw new Error('Dati meteo correnti non disponibili');
+            }
+            
+            if (!meteoData.forecast || !meteoData.forecast.forecastday || !meteoData.forecast.forecastday[0]) {
+                throw new Error('Dati previsione meteo non disponibili');
+            }
+            
+            const forecastDay = meteoData.forecast.forecastday[0];
+            
+            if (!forecastDay.hour) {
+                throw new Error('Dati orari meteo non disponibili');
+            }
+
+            // Use CURRENT weather data (always today's actual conditions, not forecast)
             const temp = meteoData.current.temp_c;
             const windSpeed = meteoData.current.wind_kph / 1.852;
             const windDir = meteoData.current.wind_degree;
@@ -372,19 +832,39 @@ try {
             weatherInfoSpan.textContent =
                 `${temp}°C, vento ${windSpeed.toFixed(0)} kt da ${degToCompass(windDir)}, QNH ${pressure} hPa`;
 
-            // --- Density Altitude ---
-            const elevationFt = 2820;
-            const PA = (1013 - pressure) * 30 + elevationFt;
-            const T_ISA = 15 - 2 * (elevationFt / 1000);
+            // --- Density Altitude (always based on CURRENT conditions, not date-dependent) ---
+            const elevationFt = 2200;
+            const PA = elevationFt + (1013.25 - pressure) * 30;
+            const T_ISA = 15 - 1.98 * (elevationFt / 1000);
             const DA = Math.round(PA + 120 * (temp - T_ISA));
 
-            densityAltitudeSpan.textContent = `${DA} ft`;
+            densityAltitudeSpan.textContent = `${DA}`;
             densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
-            // --- Grafico ---
-            const hours = meteoData.forecast.forecastday[0].hour.map(h => h.time.split(" ")[1]);
-            const temps = meteoData.forecast.forecastday[0].hour.map(h => h.temp_c);
-            const pressures = meteoData.forecast.forecastday[0].hour.map(h => h.pressure_mb);
+            // --- Grafico (show only actual data up to current time, not future forecasts) ---
+            const now = new Date();
+            const isToday = formattedDate === now.toISOString().split('T')[0];
+            
+            const forecastHours = forecastDay.hour;
+            let filteredHours = forecastHours;
+            
+            // If viewing today, only show data up to current hour (no future forecasts)
+            if (isToday) {
+                const currentHour = now.getHours();
+                filteredHours = forecastHours.filter(h => {
+                    const hourTime = parseInt(h.time.split(" ")[1].split(":")[0]);
+                    return hourTime <= currentHour;
+                });
+            }
+            
+            // If no data available for filtered hours, show at least current hour
+            if (filteredHours.length === 0 && isToday) {
+                filteredHours = [forecastHours[now.getHours()]].filter(Boolean);
+            }
+            
+            const hours = filteredHours.map(h => h.time.split(" ")[1]);
+            const temps = filteredHours.map(h => h.temp_c);
+            const pressures = filteredHours.map(h => h.pressure_mb);
 
             const canvas = document.getElementById('meteoChart');
             const ctx = canvas.getContext('2d');
@@ -423,12 +903,29 @@ try {
                 }
             });
 
+            // Show canvas and date footer, hide error message
+            canvas.style.display = 'block';
+            meteoChartError.style.display = 'none';
+            meteoChartDate.textContent = `Dati di riferimento: ${dateForTitle}`;
+            meteoChartDate.style.display = 'block';
+
         } catch (err) {
+            console.error('Errore caricamento meteo:', err);
             weatherInfoSpan.textContent = "Errore meteo";
             densityAltitudeSpan.textContent = "N/D";
+            
+            // Hide canvas and date footer, show error message
+            const canvas = document.getElementById('meteoChart');
+            canvas.style.display = 'none';
+            meteoChartDate.style.display = 'none';
+            meteoChartError.style.display = 'block';
+            
+            // Destroy existing chart if any
+            if (meteoChart) {
+                meteoChart.destroy();
+                meteoChart = null;
+            }
         }
-
-        renderHourlySchedule([]);
     };
 
     loadWeatherData();
@@ -449,8 +946,8 @@ try {
             .where('data', '<', nextDayStart)
             .orderBy('data', 'asc')
             .onSnapshot(async (snapshot) => {
-                const bookings = [];
-                for (const doc of snapshot.docs) {
+                // Fetch all user data in parallel for better performance
+                const bookingPromises = snapshot.docs.map(async (doc) => {
                     const booking = doc.data();
                     let socio_nome = 'Socio Sconosciuto';
 
@@ -472,11 +969,13 @@ try {
                         }
                     }
 
-                    bookings.push({ id: doc.id, socio_nome, ...booking });
-                }
+                    return { id: doc.id, socio_nome, ...booking };
+                });
 
+                const bookings = await Promise.all(bookingPromises);
                 renderHourlySchedule(bookings);
             }, (error) => {
+                console.error("Errore nel caricamento delle prenotazioni:", error);
                 hourlyScheduleDiv.innerHTML = '<p style="color: red;">Errore nel caricamento delle prenotazioni.</p>';
             });
     };
@@ -498,9 +997,19 @@ try {
             const docSnapshot = await userRef.get();
             let displayName = user.email;
 
+            // Check if user is admin by email (owner/administrator)
+            const isAdminEmail = user.email === 'alessandrofelli@gmail.com';
+
             if (docSnapshot.exists) {
                 const userData = docSnapshot.data();
-                window.currentUserRole = userData.ruolo || 'socio'; 
+                // Set admin role if email matches OR if role is set in database
+                window.currentUserRole = isAdminEmail ? 'admin' : (userData.ruolo || 'socio');
+                
+                // If admin email and role not set in database, update it
+                if (isAdminEmail && userData.ruolo !== 'admin') {
+                    await userRef.update({ ruolo: 'admin' });
+                }
+                
                 if (userData.nome && userData.cognome) {
                     displayName = `${userData.nome} ${userData.cognome}`;
                 } else if (userData.nome) {
@@ -509,9 +1018,19 @@ try {
                 userDisplayNameSpan.textContent = displayName;
             } else {
                 userDisplayNameSpan.textContent = user.email;
-                window.currentUserRole = 'socio'; 
+                // Set admin role if email matches, otherwise default to 'socio'
+                window.currentUserRole = isAdminEmail ? 'admin' : 'socio';
+                
+                // If admin email, create user document with admin role
+                if (isAdminEmail) {
+                    await userRef.set({
+                        email: user.email,
+                        ruolo: 'admin',
+                        nome: user.email.split('@')[0]
+                    });
+                }
             }
-
+            
             listenToBookings();
             loadWeatherData();
 
@@ -534,6 +1053,7 @@ try {
             renderHourlySchedule([]);
         }
 
+        // Hide loading message after UI update
         loadingMessage.style.display = 'none';
     };
 
