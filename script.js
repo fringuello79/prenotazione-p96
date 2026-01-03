@@ -823,6 +823,7 @@ try {
                 throw new Error('Dati orari meteo non disponibili');
             }
 
+            // Use CURRENT weather data (always today's actual conditions, not forecast)
             const temp = meteoData.current.temp_c;
             const windSpeed = meteoData.current.wind_kph / 1.852;
             const windDir = meteoData.current.wind_degree;
@@ -831,7 +832,7 @@ try {
             weatherInfoSpan.textContent =
                 `${temp}°C, vento ${windSpeed.toFixed(0)} kt da ${degToCompass(windDir)}, QNH ${pressure} hPa`;
 
-            // --- Density Altitude ---
+            // --- Density Altitude (always based on CURRENT conditions, not date-dependent) ---
             const elevationFt = 2200;
             const PA = elevationFt + (1013.25 - pressure) * 30;
             const T_ISA = 15 - 1.98 * (elevationFt / 1000);
@@ -840,11 +841,30 @@ try {
             densityAltitudeSpan.textContent = `${DA}`;
             densityAltitudeSpan.style.color = DA > 3000 ? "red" : "inherit";
 
-            // --- Grafico ---
+            // --- Grafico (show only actual data up to current time, not future forecasts) ---
+            const now = new Date();
+            const isToday = formattedDate === now.toISOString().split('T')[0];
+            
             const forecastHours = forecastDay.hour;
-            const hours = forecastHours.map(h => h.time.split(" ")[1]);
-            const temps = forecastHours.map(h => h.temp_c);
-            const pressures = forecastHours.map(h => h.pressure_mb);
+            let filteredHours = forecastHours;
+            
+            // If viewing today, only show data up to current hour (no future forecasts)
+            if (isToday) {
+                const currentHour = now.getHours();
+                filteredHours = forecastHours.filter(h => {
+                    const hourTime = parseInt(h.time.split(" ")[1].split(":")[0]);
+                    return hourTime <= currentHour;
+                });
+            }
+            
+            // If no data available for filtered hours, show at least current hour
+            if (filteredHours.length === 0 && isToday) {
+                filteredHours = [forecastHours[now.getHours()]].filter(Boolean);
+            }
+            
+            const hours = filteredHours.map(h => h.time.split(" ")[1]);
+            const temps = filteredHours.map(h => h.temp_c);
+            const pressures = filteredHours.map(h => h.pressure_mb);
 
             const canvas = document.getElementById('meteoChart');
             const ctx = canvas.getContext('2d');
