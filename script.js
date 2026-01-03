@@ -820,14 +820,17 @@ try {
     };
 
     const renderWeatherCharts = (meteoData, selectedDate) => {
-        const now = new Date();
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Use location's local time from API instead of browser time
+        const locationLocaltime = new Date(meteoData.location.localtime);
+        const locationToday = new Date(meteoData.location.localtime);
+        locationToday.setHours(0, 0, 0, 0);
+        
         const selectedDay = new Date(selectedDate);
         selectedDay.setHours(0, 0, 0, 0);
 
         // Determine which day's data to use from the forecast
-        const dayDiff = Math.floor((selectedDay - today) / (1000 * 60 * 60 * 24));
+        // Compare selectedDay with the location's today
+        const dayDiff = Math.floor((selectedDay - locationToday) / (1000 * 60 * 60 * 24));
         
         // Find the correct forecast day
         let dayData = null;
@@ -845,10 +848,10 @@ try {
 
         const allHours = dayData.hour;
         
-        // Determine if this is today, past, or future
-        const isPast = selectedDay < today;
-        const isToday = selectedDay.getTime() === today.getTime();
-        const isFuture = selectedDay > today;
+        // Determine if this is today, past, or future based on location's timezone
+        const isPast = selectedDay < locationToday;
+        const isToday = selectedDay.getTime() === locationToday.getTime();
+        const isFuture = selectedDay > locationToday;
 
         // Destroy existing charts
         if (meteoChart) {
@@ -862,7 +865,8 @@ try {
 
         if (isToday) {
             // For today: create two side-by-side charts
-            const currentHour = now.getHours();
+            // Use location's local hour instead of browser's hour
+            const currentHour = locationLocaltime.getHours();
             
             // Actual data: from start of day to current hour (inclusive)
             // Filter based on actual hour from time string, not array index
