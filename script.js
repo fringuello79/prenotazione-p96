@@ -480,7 +480,7 @@ try {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: false, // Disabilitato per adattarsi al container ridotto (450px)
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: {
