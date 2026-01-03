@@ -445,8 +445,8 @@ try {
             const actualTemps = actualData.map(h => h.temp_c);
             const actualPressures = actualData.map(h => h.pressure_mb);
 
-            // Forecast data: from current hour to end of day
-            const forecastData = allHours.filter((h, idx) => idx >= currentHour);
+            // Forecast data: from current hour (exclusive) to end of day
+            const forecastData = allHours.filter((h, idx) => idx > currentHour);
             const forecastLabels = forecastData.map(h => h.time.split(" ")[1]);
             const forecastTemps = forecastData.map(h => h.temp_c);
             const forecastPressures = forecastData.map(h => h.pressure_mb);
@@ -612,7 +612,7 @@ try {
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Dati Giornalieri'
+                            text: 'Dati Giornalieri (Storico non disponibile)'
                         }
                     },
                     scales: {
