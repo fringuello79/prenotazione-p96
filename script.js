@@ -822,7 +822,7 @@ try {
     const renderWeatherCharts = (meteoData, selectedDate) => {
         // Use location's local time from API instead of browser time
         const locationLocaltime = new Date(meteoData.location.localtime);
-        const locationToday = new Date(meteoData.location.localtime);
+        const locationToday = new Date(locationLocaltime);
         locationToday.setHours(0, 0, 0, 0);
         
         const selectedDay = new Date(selectedDate);
