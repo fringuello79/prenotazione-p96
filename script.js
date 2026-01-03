@@ -478,6 +478,8 @@ try {
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2.5,
                     interaction: { mode: 'index', intersect: false },
                     stacked: false,
                     scales: {
