@@ -386,6 +386,85 @@ try {
             const temps = meteoData.forecast.forecastday[0].hour.map(h => h.temp_c);
             const pressures = meteoData.forecast.forecastday[0].hour.map(h => h.pressure_mb);
 
+            // Determine current hour to distinguish past/current from forecast
+            const now = new Date();
+            const isToday = currentDisplayDate.toDateString() === now.toDateString();
+            const currentHour = isToday ? now.getHours() : -1;
+
+            // Split data into past/current (actual) and future (forecast)
+            const datasets = [];
+
+            if (isToday && currentHour >= 0) {
+                // For today, split at current hour
+                const actualTemps = temps.map((t, i) => i <= currentHour ? t : null);
+                const forecastTemps = temps.map((t, i) => i >= currentHour ? t : null);
+                const actualPressures = pressures.map((p, i) => i <= currentHour ? p : null);
+                const forecastPressures = pressures.map((p, i) => i >= currentHour ? p : null);
+
+                datasets.push(
+                    {
+                        label: 'Temperatura Attuale (°C)',
+                        data: actualTemps,
+                        borderColor: 'rgb(220, 20, 20)',
+                        backgroundColor: 'rgba(220, 20, 20, 0.1)',
+                        yAxisID: 'y1',
+                        tension: 0.2,
+                        spanGaps: false
+                    },
+                    {
+                        label: 'Temperatura Prevista (°C)',
+                        data: forecastTemps,
+                        borderColor: 'rgb(255, 140, 140)',
+                        backgroundColor: 'rgba(255, 140, 140, 0.1)',
+                        borderDash: [5, 5],
+                        yAxisID: 'y1',
+                        tension: 0.2,
+                        spanGaps: false
+                    },
+                    {
+                        label: 'QNH Attuale (hPa)',
+                        data: actualPressures,
+                        borderColor: 'rgb(20, 20, 220)',
+                        backgroundColor: 'rgba(20, 20, 220, 0.1)',
+                        yAxisID: 'y2',
+                        tension: 0.2,
+                        spanGaps: false
+                    },
+                    {
+                        label: 'QNH Previsto (hPa)',
+                        data: forecastPressures,
+                        borderColor: 'rgb(140, 140, 255)',
+                        backgroundColor: 'rgba(140, 140, 255, 0.1)',
+                        borderDash: [5, 5],
+                        yAxisID: 'y2',
+                        tension: 0.2,
+                        spanGaps: false
+                    }
+                );
+            } else {
+                // For future days, all data is forecast
+                datasets.push(
+                    {
+                        label: 'Temperatura Prevista (°C)',
+                        data: temps,
+                        borderColor: 'rgb(255, 140, 140)',
+                        backgroundColor: 'rgba(255, 140, 140, 0.1)',
+                        borderDash: [5, 5],
+                        yAxisID: 'y1',
+                        tension: 0.2
+                    },
+                    {
+                        label: 'QNH Previsto (hPa)',
+                        data: pressures,
+                        borderColor: 'rgb(140, 140, 255)',
+                        backgroundColor: 'rgba(140, 140, 255, 0.1)',
+                        borderDash: [5, 5],
+                        yAxisID: 'y2',
+                        tension: 0.2
+                    }
+                );
+            }
+
             const canvas = document.getElementById('meteoChart');
             const ctx = canvas.getContext('2d');
 
@@ -395,22 +474,7 @@ try {
                 type: 'line',
                 data: {
                     labels: hours,
-                    datasets: [
-                        {
-                            label: 'Temperatura (°C)',
-                            data: temps,
-                            borderColor: 'red',
-                            yAxisID: 'y1',
-                            tension: 0.2
-                        },
-                        {
-                            label: 'QNH (hPa)',
-                            data: pressures,
-                            borderColor: 'blue',
-                            yAxisID: 'y2',
-                            tension: 0.2
-                        }
-                    ]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
