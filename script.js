@@ -409,14 +409,14 @@ try {
                               hourTime.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
                 labels.push(label);
 
-                if (hourTime <= now) {
-                    // Dati passati/attuali
+                if (hourTime < now) {
+                    // Dati passati
                     tempsPast.push(allTemps[index]);
                     tempsFuture.push(null);
                     pressuresPast.push(allPressures[index]);
                     pressuresFuture.push(null);
                 } else {
-                    // Dati previsionali
+                    // Dati previsionali (inclusa ora corrente)
                     tempsPast.push(null);
                     tempsFuture.push(allTemps[index]);
                     pressuresPast.push(null);
@@ -480,7 +480,7 @@ try {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: {
