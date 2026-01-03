@@ -53,8 +53,15 @@
 
             <!-- ⭐ SEZIONE GRAFICO METEO E DA (AGGIUNTA) ⭐ -->
             <div class="meteo-chart-section">
-                <h3>Grafico Meteo e Density Altitude (72h)</h3>
-                <canvas id="meteoChart" style="max-width: 900px; margin: 20px auto;"></canvas>
+                <h3>Grafico Meteo Giornaliero</h3>
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartActual"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartForecast"></canvas>
+                    </div>
+                </div>
             </div>
 
             <hr>
