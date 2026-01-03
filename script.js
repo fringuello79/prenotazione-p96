@@ -1003,7 +1003,13 @@ try {
             if (docSnapshot.exists) {
                 const userData = docSnapshot.data();
                 // Set admin role if email matches OR if role is set in database
-                window.currentUserRole = isAdminEmail ? 'admin' : (userData.ruolo || 'socio'); 
+                window.currentUserRole = isAdminEmail ? 'admin' : (userData.ruolo || 'socio');
+                
+                // If admin email and role not set in database, update it
+                if (isAdminEmail && userData.ruolo !== 'admin') {
+                    await userRef.update({ ruolo: 'admin' });
+                }
+                
                 if (userData.nome && userData.cognome) {
                     displayName = `${userData.nome} ${userData.cognome}`;
                 } else if (userData.nome) {
@@ -1013,7 +1019,16 @@ try {
             } else {
                 userDisplayNameSpan.textContent = user.email;
                 // Set admin role if email matches, otherwise default to 'socio'
-                window.currentUserRole = isAdminEmail ? 'admin' : 'socio'; 
+                window.currentUserRole = isAdminEmail ? 'admin' : 'socio';
+                
+                // If admin email, create user document with admin role
+                if (isAdminEmail) {
+                    await userRef.set({
+                        email: user.email,
+                        ruolo: 'admin',
+                        nome: user.email.split('@')[0]
+                    });
+                }
             }
             
             listenToBookings();
