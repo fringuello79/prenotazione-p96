@@ -820,38 +820,40 @@ try {
     };
 
     const renderWeatherCharts = (meteoData, selectedDate) => {
-        // Use location's local time from API instead of browser time
+        // Use location's local time from API for current hour
         const locationLocaltime = new Date(meteoData.location.localtime);
-        const locationToday = new Date(locationLocaltime);
-        locationToday.setHours(0, 0, 0, 0);
+        const currentHour = locationLocaltime.getHours();
         
+        // Convert selected date to string format (YYYY-MM-DD) for comparison
         const selectedDay = new Date(selectedDate);
         selectedDay.setHours(0, 0, 0, 0);
-
-        // Determine which day's data to use from the forecast
-        // Compare selectedDay with the location's today
-        const dayDiff = Math.floor((selectedDay - locationToday) / (1000 * 60 * 60 * 24));
+        const selectedDateStr = selectedDay.toISOString().split('T')[0];
         
-        // Find the correct forecast day
+        // Find the forecast day that matches the selected date
+        // Compare directly with API's date strings to avoid timezone issues
         let dayData = null;
-        if (dayDiff >= 0 && dayDiff < meteoData.forecast.forecastday.length) {
-            dayData = meteoData.forecast.forecastday[dayDiff];
-        } else if (dayDiff < 0) {
-            // For past days, use current day data (won't have actual past data from API)
-            dayData = meteoData.forecast.forecastday[0];
+        let dayIndex = -1;
+        for (let i = 0; i < meteoData.forecast.forecastday.length; i++) {
+            if (meteoData.forecast.forecastday[i].date === selectedDateStr) {
+                dayData = meteoData.forecast.forecastday[i];
+                dayIndex = i;
+                break;
+            }
         }
-
+        
+        // If selected date not in forecast, use first day (today)
         if (!dayData) {
-            console.error("No forecast data available for selected date");
-            return;
+            dayData = meteoData.forecast.forecastday[0];
+            dayIndex = 0;
         }
 
         const allHours = dayData.hour;
         
-        // Determine if this is today, past, or future based on location's timezone
-        const isPast = selectedDay < locationToday;
-        const isToday = selectedDay.getTime() === locationToday.getTime();
-        const isFuture = selectedDay > locationToday;
+        // forecastday[0] is always "today" in the location's timezone
+        // Compare selected date string with forecastday[0].date to determine if it's today
+        const isToday = selectedDateStr === meteoData.forecast.forecastday[0].date;
+        const isFuture = dayIndex > 0;
+        const isPast = dayIndex < 0;
 
         // Destroy existing charts
         if (meteoChart) {
@@ -865,8 +867,7 @@ try {
 
         if (isToday) {
             // For today: create two side-by-side charts
-            // Use location's local hour instead of browser's hour
-            const currentHour = locationLocaltime.getHours();
+            // currentHour is already defined at the beginning using location's local time
             
             // Actual data: from start of day to current hour (inclusive)
             // Filter based on actual hour from time string, not array index
