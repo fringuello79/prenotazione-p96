@@ -8,7 +8,7 @@
 </head>
 <body>
     <div id="app">
-        <div id="version-info">rev0 - 30/12/2025</div>
+        <div id="version-info">rev2 - 01/01/2026</div>
         <img src="logo.jpg" alt="Logo Aeroclub dei Marsi" id="aeroclub-logo">
         <h1>Benvenuto all'Aeroclub dei Marsi</h1>
         <p id="loading-message">Caricamento applicazione...</p>
@@ -31,7 +31,7 @@
         <!-- Sezione App (visibile dopo il login) -->
         <div id="app-content" style="display: none;">
             <div class="user-info-bar">
-                <h2>Bentornato, <span id="user-display-name"></span>!</h2>
+                <h2>Bentornato, <span id="user-display-name"></span></h2>
                 <button id="logout-button">Esci</button>
             </div>
 
@@ -53,8 +53,15 @@
 
             <!-- ⭐ SEZIONE GRAFICO METEO E DA (AGGIUNTA) ⭐ -->
             <div class="meteo-chart-section">
-                <h3>Grafico Meteo e Density Altitude (72h)</h3>
-                <canvas id="meteoChart" style="max-width: 900px; margin: 20px auto;"></canvas>
+                <h3>Grafico Meteo Giornaliero</h3>
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartActual"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartForecast"></canvas>
+                    </div>
+                </div>
             </div>
 
             <hr>
@@ -66,7 +73,7 @@
                     <p>Caricamento tabella oraria...</p>
                 </div>
 
-                <h4>Nuova Prenotazione</h4>
+                <h4>Prenotazione oraria personalizzata</h4>
                 <div class="new-booking-form">
                     <input type="time" id="start-time" value="09:00" required>
                     <input type="time" id="end-time" value="10:00" required>
@@ -75,9 +82,75 @@
                 </div>
             </div>
         </div>
+
+        <!-- Booking Details Dialog -->
+        <div id="booking-details-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>Dettagli Prenotazione</h3>
+                <div id="booking-details-content">
+                    <p><strong>Socio:</strong> <span id="detail-socio"></span></p>
+                    <p><strong>Data:</strong> <span id="detail-date"></span></p>
+                    <p><strong>Orario:</strong> <span id="detail-time"></span></p>
+                    <div class="hobbs-display">
+                        <p><strong>Hobbs Partenza:</strong> <span id="detail-hobbs-partenza">Non registrato</span></p>
+                        <div id="detail-hobbs-partenza-photo-container" class="photo-display" style="display: none;">
+                            <img id="detail-hobbs-partenza-photo" alt="Foto Hobbs Partenza">
+                        </div>
+                        <p><strong>Hobbs Arrivo:</strong> <span id="detail-hobbs-arrivo">Non registrato</span></p>
+                        <div id="detail-hobbs-arrivo-photo-container" class="photo-display" style="display: none;">
+                            <img id="detail-hobbs-arrivo-photo" alt="Foto Hobbs Arrivo">
+                        </div>
+                        <p class="hobbs-duration"><strong>Ore di volo:</strong> <span id="detail-hobbs-duration">-</span></p>
+                    </div>
+                </div>
+                <div class="modal-buttons" id="booking-action-buttons" style="display: none;">
+                    <button id="edit-hobbs-from-details" class="primary-button">✏️ Modifica Hobbs</button>
+                    <button id="delete-from-details" class="danger-button">🗑️ Elimina Prenotazione</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hobbs Edit Dialog -->
+        <div id="hobbs-edit-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>Modifica Dati Hobbs</h3>
+                <div id="hobbs-edit-content">
+                    <p><strong>Prenotazione:</strong> <span id="edit-booking-info"></span></p>
+                    <div class="hobbs-form">
+                        <label for="hobbs-partenza-input">Hobbs Partenza:</label>
+                        <input type="number" id="hobbs-partenza-input" step="0.1" min="0" placeholder="es. 123.4">
+                        
+                        <label for="hobbs-partenza-photo">Foto Hobbs Partenza (opzionale):</label>
+                        <input type="file" id="hobbs-partenza-photo" accept="image/*" capture="environment">
+                        <div id="hobbs-partenza-photo-preview" class="photo-preview"></div>
+                        
+                        <label for="hobbs-arrivo-input">Hobbs Arrivo:</label>
+                        <input type="number" id="hobbs-arrivo-input" step="0.1" min="0" placeholder="es. 125.1">
+                        
+                        <label for="hobbs-arrivo-photo">Foto Hobbs Arrivo (opzionale):</label>
+                        <input type="file" id="hobbs-arrivo-photo" accept="image/*" capture="environment">
+                        <div id="hobbs-arrivo-photo-preview" class="photo-preview"></div>
+                        
+                        <p class="hobbs-help-text" style="line-height: 1.3; margin: 8px 0;">
+                            💡 Inserisci la lettura del contatore Hobbs prima e dopo il volo<br>
+                            📷 Puoi anche caricare foto del contatore per documentazione<br>
+                            ⏱️ Le foto possono essere caricate/modificate entro 4 ore dalla fine della prenotazione
+                        </p>
+                        <p id="hobbs-error-message" style="color: red;"></p>
+                        
+                        <div class="modal-buttons">
+                            <button id="save-hobbs-button" class="primary-button">Salva</button>
+                            <button id="cancel-hobbs-button" class="secondary-button">Annulla</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs (Storage rimosso, ora usiamo Imgur) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -88,5 +161,8 @@
 
     <!-- Script personalizzato -->
     <script src="script.js"></script>
+
+    <!-- Airplane watermark -->
+    <img src="https://i.ibb.co/5Z30NT4/P96-senza-sfondo.png" alt="Tecnam P96" id="airplane-watermark">
 </body>
 </html>

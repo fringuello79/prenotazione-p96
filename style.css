@@ -1,16 +1,26 @@
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --free-slot-gradient: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    --booked-slot-gradient: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    --own-booking-gradient: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    --night-gradient: linear-gradient(135deg, #37474f 0%, #263238 100%);
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 20px;
-    background-color: #eef2f7; /* Sfondo più morbido */
+    background: var(--primary-gradient);
+    background-attachment: fixed;
     color: #333;
 }
 #app {
     background-color: #ffffff;
     padding: 30px;
-    border-radius: 12px; /* Angoli più arrotondati */
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* Ombra più pronunciata */
-    max-width: 900px; /* Aumentato per la tabella */
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    max-width: 900px;
     margin: 20px auto;
     text-align: center;
     min-height: 150px;
@@ -18,29 +28,34 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    position: relative; /* Per posizionare la versione */
+    position: relative;
 }
-#version-info { /* Stile per la versione */
+#version-info {
     position: absolute;
     top: 10px;
     right: 15px;
     font-size: 0.7em;
-    color: #a0a0a0;
+    color: #999;
+    background: #f5f5f5;
+    padding: 4px 8px;
+    border-radius: 4px;
     z-index: 10;
 }
 #aeroclub-logo {
-    max-width: 180px; /* Dimensione massima per il logo */
+    max-width: 180px;
     height: auto;
     margin-bottom: 25px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
 }
 h1 {
-    color: #1a73e8; /* Blu Google */
+    color: #2c3e50;
     margin-top: 0;
     font-size: 2.2em;
     font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 h2 {
-    color: #3c4043;
+    color: #34495e;
     font-size: 1.6em;
     font-weight: 500;
 }
@@ -63,7 +78,7 @@ hr {
     width: 80%;
     margin: 30px 0;
     border: 0;
-    border-top: 1px solid #e0e0e0;
+    border-top: 2px solid #e8eaf6;
 }
 
 /* Auth Container */
@@ -72,12 +87,17 @@ hr {
     width: 80%;
     padding: 12px;
     margin: 10px auto;
-    border: 1px solid #dcdcdc;
+    border: 2px solid #e0e0e0;
     border-radius: 8px;
     font-size: 1em;
+    transition: border-color 0.3s ease;
+}
+#auth-container input:focus {
+    outline: none;
+    border-color: #667eea;
 }
 #auth-container button, .user-info-bar button, .new-booking-form button, .date-navigation button {
-    background-color: #1a73e8; /* Blu Google */
+    background: var(--primary-gradient);
     color: white;
     padding: 12px 25px;
     border: none;
@@ -85,39 +105,42 @@ hr {
     cursor: pointer;
     margin: 5px;
     font-size: 1em;
-    transition: background-color 0.3s ease;
+    font-weight: 500;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 #auth-container button:hover, .user-info-bar button:hover, .new-booking-form button:hover, .date-navigation button:hover {
-    background-color: #0d47a1; /* Blu più scuro al hover */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 #auth-error-message, #booking-error-message {
     margin-top: 10px;
     font-size: 0.95em;
-    color: #d32f2f; /* Rosso per errori */
+    color: #d32f2f;
 }
 
-/* User Info Bar (nuovo) */
+/* User Info Bar */
 .user-info-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    padding: 10px 0;
+    padding: 15px 0;
     margin-bottom: 10px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 2px solid #e8eaf6;
 }
 .user-info-bar h2 {
     margin: 0;
     font-size: 1.4em;
-    color: #3c4043;
+    color: #2c3e50;
 }
 .user-info-bar button {
     padding: 8px 15px;
     font-size: 0.9em;
-    background-color: #f44336; /* Rosso per logout */
+    background: var(--secondary-gradient);
 }
 .user-info-bar button:hover {
-    background-color: #d32f2f;
+    transform: translateY(-2px);
 }
 
 
@@ -140,26 +163,26 @@ hr {
     margin: 15px 0;
     font-size: 1.3em;
     font-weight: 600;
-    color: #3c4043;
+    color: #2c3e50;
 }
 .date-navigation button {
-    background-color: #6c757d;
+    background: var(--primary-gradient);
     color: white;
     padding: 10px 18px;
     border-radius: 6px;
     margin: 0 12px;
 }
 .date-navigation button:hover {
-    background-color: #5a6268;
+    transform: translateY(-2px);
 }
 
 /* Hourly Schedule Table */
 #hourly-schedule {
     margin-top: 20px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    overflow: hidden; /* Per arrotondare gli angoli interni */
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 2px solid #e8eaf6;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     background-color: #fcfcfc;
 }
 .hour-block {
@@ -167,78 +190,98 @@ hr {
     border-bottom: 1px solid #f0f0f0;
 }
 .hour-block:last-child {
-    border-bottom: none; /* Rimuovi bordo dall'ultimo elemento */
+    border-bottom: none;
 }
 .time-label {
     width: 80px;
     flex-shrink: 0;
-    background-color: #f8f9fa;
+    background: var(--primary-gradient);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
     font-size: 0.9em;
-    border-right: 1px solid #e0e0e0;
-    color: #5f6368;
+    border-right: 2px solid #e8eaf6;
 }
 .half-hour-slot {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     padding: 8px 10px;
-    min-height: 40px; /* Altezza minima per slot */
+    min-height: 50px;
     box-sizing: border-box;
     position: relative;
     font-size: 0.85em;
     color: #70757a;
-    text-align: left;
-    transition: background-color 0.2s ease;
+    text-align: center;
+    transition: all 0.2s ease;
 }
-/* Cursore per slot cliccabili */
-.half-hour-slot.free, .half-hour-slot.booked.own-booking-slot, .half-hour-slot.booked.admin-managed-slot {
+.half-hour-slot.free, .half-hour-slot.booked.own-booking-slot {
     cursor: pointer;
 }
 
-.half-hour-slot.free:hover { /* Hover solo su slot liberi */
-    background-color: #d1ffd1; /* Verde più scuro all'hover */
+.half-hour-slot.free:hover {
+    background-color: #c8e6c9;
+    transform: scale(1.02);
 }
 
 .half-hour-slot.free {
-    background-color: #e6ffe6; /* Verde chiaro per slot liberi */
+    background: var(--free-slot-gradient);
+    border-left: 4px solid #4caf50;
 }
 .half-hour-slot.booked {
-    background-color: #ffe6e6; /* Rosso chiaro per slot occupati */
-    color: #c43c3c;
+    background: var(--booked-slot-gradient);
+    border-left: 4px solid #ff9800;
+    color: #e65100;
     font-weight: 500;
 }
 .half-hour-slot.own-booking-slot {
-    background-color: #d3eaff; /* Blu chiaro per le proprie prenotazioni */
-    color: #1a73e8;
+    background: var(--own-booking-gradient);
+    border-left: 4px solid #2196f3;
+    color: #0d47a1;
     font-weight: 500;
 }
-/* Stile per l'orario all'interno dello slot libero */
+.half-hour-slot.booked:hover, .half-hour-slot.own-booking-slot:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 .half-hour-slot.free .slot-time-indicator {
-    font-size: 0.7em; /* Più piccolo */
-    color: #888; /* Grigio discreto */
+    font-size: 0.7em;
+    color: #888;
     margin-top: 3px;
     font-weight: normal;
 }
 
 .slot-content {
-    white-space: nowrap; /* Evita il wrap del testo del pilota */
+    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis; /* Aggiunge i puntini se il testo è troppo lungo */
+    text-overflow: ellipsis;
+}
+.hobbs-info {
+    font-size: 0.75em;
+    color: #666;
+    margin-top: 3px;
+    display: flex;
+    gap: 8px;
+}
+.hobbs-info span {
+    background: rgba(255,255,255,0.7);
+    padding: 2px 6px;
+    border-radius: 4px;
 }
 .half-hour-slot.night {
-    background-color: #333; /* Grigio scuro per orari notturni */
+    background: var(--night-gradient);
     color: #bbb;
     font-style: italic;
     text-align: center;
-    cursor: default; /* Non cliccabile se è notte */
+    cursor: default;
+    border-left: 4px solid #455a64;
 }
 .half-hour-slot.night .slot-content {
-    color: #bbb; /* Assicura colore testo anche per night */
+    color: #bbb;
 }
 
 
@@ -246,7 +289,432 @@ hr {
 .new-booking-form input {
     padding: 10px;
     margin: 5px;
-    border: 1px solid #dcdcdc;
+    border: 2px solid #e0e0e0;
     border-radius: 6px;
     font-size: 0.95em;
+    transition: border-color 0.3s ease;
+}
+.new-booking-form input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.modal-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 16px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    position: relative;
+    animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+.close-button {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #999;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+.close-button:hover {
+    color: #333;
+}
+.hobbs-display p, .hobbs-form label {
+    text-align: left;
+    margin: 12px 0;
+}
+.hobbs-duration {
+    font-size: 1.1em;
+    color: #667eea;
+    font-weight: 600;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid #e8eaf6;
+}
+.hobbs-form {
+    margin-top: 20px;
+}
+.hobbs-form label {
+    display: block;
+    font-weight: 500;
+    color: #34495e;
+    margin-top: 15px;
+    margin-bottom: 5px;
+}
+.hobbs-form input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+.hobbs-form input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+.hobbs-help-text {
+    font-size: 0.9em;
+    color: #666;
+    margin: 15px 0;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    text-align: center;
+}
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+.primary-button, .secondary-button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.primary-button {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+.primary-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+.secondary-button {
+    background: #f5f5f5;
+    color: #333;
+}
+.secondary-button:hover {
+    background: #e0e0e0;
+}
+.danger-button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--secondary-gradient);
+    color: white;
+    box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+}
+.danger-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    #app {
+        padding: 15px;
+        margin: 10px auto;
+        max-width: 100%;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+    }
+    
+    h2 {
+        font-size: 1.2em;
+    }
+    
+    h3 {
+        font-size: 1.1em;
+    }
+    
+    h4 {
+        font-size: 1em;
+    }
+    
+    /* Make "Bentornato" text responsive */
+    .user-info-bar {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .user-info-bar h2 {
+        font-size: clamp(1em, 4vw, 1.4em);
+        word-break: break-word;
+        width: 100%;
+    }
+    
+    .user-info-bar button {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    /* Date navigation */
+    .date-navigation {
+        flex-direction: column;
+        gap: 10px;
+        font-size: 1em;
+    }
+    
+    .date-navigation button {
+        width: 100%;
+        max-width: 200px;
+        margin: 5px 0;
+    }
+    
+    .date-navigation span {
+        order: -1;
+        margin-bottom: 10px;
+    }
+    
+    /* Auth container */
+    #auth-container input {
+        width: 90%;
+    }
+    
+    #auth-container button, .new-booking-form button {
+        width: 90%;
+        max-width: 300px;
+    }
+    
+    /* Schedule table */
+    .time-label {
+        width: 50px;
+        font-size: 0.75em;
+    }
+    
+    .half-hour-slot {
+        font-size: 0.75em;
+        padding: 5px;
+        min-height: 35px;
+    }
+    
+    /* Chart */
+    .meteo-chart-section canvas {
+        max-width: 100% !important;
+    }
+    
+    /* Version info */
+    #version-info {
+        font-size: 0.6em;
+        right: 5px;
+        top: 5px;
+    }
+    
+    /* Logo */
+    #aeroclub-logo {
+        max-width: 120px;
+    }
+    
+    /* Booking form */
+    .new-booking-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .new-booking-form input {
+        width: 90%;
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.3em;
+    }
+    
+    .user-info-bar h2 {
+        font-size: clamp(0.9em, 3.5vw, 1.2em);
+    }
+    
+    .time-label {
+        width: 40px;
+        font-size: 0.7em;
+    }
+    
+    .half-hour-slot {
+        font-size: 0.7em;
+        padding: 3px;
+        min-height: 30px;
+    }
+}
+
+/* Photo upload and display styles */
+.hobbs-form input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    margin: 8px 0;
+    border: 2px dashed #667eea;
+    border-radius: 8px;
+    background: #f8f9fa;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.hobbs-form input[type="file"]:hover {
+    background: #e3f2fd;
+    border-color: #764ba2;
+}
+
+.photo-preview {
+    margin: 10px 0;
+    text-align: center;
+}
+
+.photo-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    margin-top: 8px;
+}
+
+.photo-display {
+    margin: 15px 0;
+    text-align: center;
+}
+
+.photo-display img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.photo-display img:hover {
+    transform: scale(1.05);
+}
+
+.photo-preview .remove-photo {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 5px 10px;
+    background: #f5576c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.photo-preview .remove-photo:hover {
+    background: #d32f2f;
+}
+
+/* Weather Charts Section */
+.meteo-chart-section {
+    width: 100%;
+    margin: 20px 0;
+}
+
+.charts-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    align-items: flex-start;
+    margin: 20px auto;
+}
+
+.chart-wrapper {
+    flex: 1;
+    min-width: 400px;
+    max-width: 600px;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.chart-wrapper canvas {
+    width: 100% !important;
+    height: auto !important;
+}
+
+@media (max-width: 900px) {
+    .charts-container {
+        flex-direction: column;
+    }
+    .chart-wrapper {
+        min-width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* Airplane watermark */
+#airplane-watermark {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 120px;
+    height: auto;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 999;
+    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
+    transition: opacity 0.3s ease;
+    mix-blend-mode: multiply;
+}
+
+/* Responsive adjustments for airplane watermark */
+@media (max-width: 768px) {
+    #airplane-watermark {
+        width: 80px;
+        bottom: 10px;
+        right: 10px;
+        opacity: 0.4;
+    }
+}
+
+@media (max-width: 480px) {
+    #airplane-watermark {
+        width: 60px;
+        opacity: 0.35;
+    }
+}
 }
