@@ -825,9 +825,13 @@ try {
         const currentHour = locationLocaltime.getHours();
         
         // Convert selected date to string format (YYYY-MM-DD) for comparison
+        // IMPORTANT: Extract date components in LOCAL timezone, not UTC
         const selectedDay = new Date(selectedDate);
         selectedDay.setHours(0, 0, 0, 0);
-        const selectedDateStr = selectedDay.toISOString().split('T')[0];
+        const year = selectedDay.getFullYear();
+        const month = String(selectedDay.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDay.getDate()).padStart(2, '0');
+        const selectedDateStr = `${year}-${month}-${day}`;
         
         // Find the forecast day that matches the selected date
         // Compare directly with API's date strings to avoid timezone issues
