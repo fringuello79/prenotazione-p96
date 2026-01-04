@@ -693,7 +693,7 @@ hr {
     right: 20px;
     width: 120px;
     height: auto;
-    opacity: 0.5;
+    opacity: 0.8;
     pointer-events: none;
     z-index: 999;
     filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
@@ -707,14 +707,64 @@ hr {
         width: 80px;
         bottom: 10px;
         right: 10px;
-        opacity: 0.4;
+        opacity: 0.8;
     }
 }
 
 @media (max-width: 480px) {
     #airplane-watermark {
         width: 60px;
-        opacity: 0.35;
+        opacity: 0.8;
+    }
+}
+
+/* PDF Download Link */
+#pdf-download-link {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: var(--primary-gradient);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+}
+
+#pdf-download-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+#pdf-download-link a {
+    display: block;
+    padding: 12px 20px;
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95em;
+    white-space: nowrap;
+}
+
+#pdf-download-link a:hover {
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    #pdf-download-link {
+        left: 10px;
+        bottom: 10px;
+    }
+    
+    #pdf-download-link a {
+        font-size: 0.85em;
+        padding: 10px 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    #pdf-download-link a {
+        font-size: 0.75em;
+        padding: 8px 12px;
     }
 }
 }
