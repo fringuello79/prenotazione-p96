@@ -841,10 +841,18 @@ try {
             }
         }
         
-        // If selected date not in forecast, use first day (today)
+        // If selected date not in forecast, determine if it's past or future
         if (!dayData) {
-            dayData = meteoData.forecast.forecastday[0];
-            dayIndex = 0;
+            // Compare selected date string with first forecast day
+            if (selectedDateStr < meteoData.forecast.forecastday[0].date) {
+                // Past date - use today's data but mark as past
+                dayData = meteoData.forecast.forecastday[0];
+                dayIndex = -1;
+            } else {
+                // Future date beyond forecast - use last available day
+                dayData = meteoData.forecast.forecastday[meteoData.forecast.forecastday.length - 1];
+                dayIndex = meteoData.forecast.forecastday.length;
+            }
         }
 
         const allHours = dayData.hour;
