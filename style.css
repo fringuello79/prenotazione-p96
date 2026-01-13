@@ -143,6 +143,59 @@ hr {
     transform: translateY(-2px);
 }
 
+/* Downloads Section */
+.downloads-section {
+    width: 100%;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.downloads-section h3 {
+    color: #2c3e50;
+    font-size: 1.3em;
+    margin-bottom: 15px;
+}
+
+.download-buttons-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    margin: 15px 0;
+}
+
+.download-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 25px;
+    background: var(--primary-gradient);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 500;
+    min-width: 300px;
+    max-width: 500px;
+    width: 80%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.download-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.download-icon {
+    font-size: 1.3em;
+}
+
+.download-text {
+    flex: 1;
+    text-align: center;
+}
 
 /* App Content Sections */
 .day-status, .schedule-section {
@@ -560,6 +613,18 @@ hr {
     .new-booking-form input {
         width: 90%;
         max-width: 300px;
+    }
+    
+    /* Download buttons */
+    .download-button {
+        width: 90%;
+        min-width: unset;
+        font-size: 0.9em;
+        padding: 12px 15px;
+    }
+    
+    .download-icon {
+        font-size: 1.1em;
     }
 }
 
