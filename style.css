@@ -765,3 +765,115 @@ hr {
     }
 }
 }
+/* --- Riepilogo Ore Volate per Socio --- */
+.totals-section {
+    width: 100%;
+    margin-top: 20px;
+}
+.totals-subtitle {
+    font-size: 0.85em;
+    color: #70757a;
+    margin: 4px 0 12px 0;
+}
+.totals-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+    font-size: 0.95em;
+}
+.totals-table th,
+.totals-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+.totals-table th {
+    background: var(--primary-gradient);
+    color: #fff;
+    font-weight: 600;
+}
+.totals-table td:nth-child(2) {
+    text-align: left;
+    font-weight: 600;
+    color: #2c3e50;
+}
+.totals-table tbody tr:nth-child(odd) {
+    background-color: #f7f8fc;
+}
+.totals-table tfoot td {
+    background-color: #eef0f8;
+    border-top: 2px solid #667eea;
+}
+#refresh-totals-button {
+    width: auto;
+    padding: 8px 18px;
+}
+
+/* --- Nomi soci cliccabili nella classifica --- */
+.totals-table td.socio-name {
+    cursor: pointer;
+    color: #4a3f9e;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+.totals-table td.socio-name:hover {
+    color: #667eea;
+    background-color: #eef0fb;
+}
+.totals-hint {
+    font-size: 0.82em;
+    color: #70757a;
+    margin: 6px 0 0 0;
+}
+
+/* --- Tendina selezione data --- */
+.date-jump {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px 0 4px 0;
+    font-size: 0.95em;
+}
+.date-jump label {
+    color: #5f6368;
+    font-weight: 600;
+}
+.date-jump select {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+    font-size: 0.95em;
+    max-width: 100%;
+}
+
+/* --- Tabella dettaglio voli del socio --- */
+.flights-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+    margin-top: 8px;
+}
+.flights-table th,
+.flights-table td {
+    padding: 7px 8px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+.flights-table th {
+    background: var(--primary-gradient);
+    color: #fff;
+    font-weight: 600;
+}
+.flights-table td:first-child {
+    text-align: left;
+}
+.flights-table tbody tr:nth-child(odd) {
+    background-color: #f7f8fc;
+}
+.flights-table tfoot td {
+    background-color: #eef0f8;
+    border-top: 2px solid #667eea;
+}

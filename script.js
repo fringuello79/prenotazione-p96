@@ -56,6 +56,10 @@ try {
 
     let bookingsSnapshotUnsubscribe = null;
 
+    // Cache dei voli per socio, popolata da renderMemberTotals()
+    // socio_id -> { nome, flights: [...] }
+    let memberFlightsCache = {};
+
     // Alba/tramonto
     let currentDaySunrise = "00:00"; 
     let currentDaySunset = "23:59"; 
@@ -347,7 +351,200 @@ try {
     };
 
     // --- Helper Functions for Hobbs Meter ---
-    
+
+    // Converte una differenza Hobbs in ore decimali -> stringa "Xh Ym (N minuti)"
+    // Il contaore del P96 è in decimi d'ora: 0.1 = 6 minuti.
+    const formatFlightTime = (hobbsP, hobbsA) => {
+        const p = parseFloat(hobbsP);
+        const a = parseFloat(hobbsA);
+        if (isNaN(p) || isNaN(a) || a <= p) return null;
+        const decimalHours = a - p;
+        const totalMinutes = Math.round(decimalHours * 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        const hm = h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+        return { totalMinutes, decimalHours, label: `${hm} (${totalMinutes} minuti)` };
+    };
+
+    // Helper: ricava un oggetto Date dal campo "data" (Firestore Timestamp o {seconds})
+    const bookingDateToDate = (data) => {
+        if (!data) return null;
+        if (typeof data.toDate === 'function') return data.toDate();
+        if (data.seconds) return new Date(data.seconds * 1000);
+        return null;
+    };
+
+    // Popola il menù a tendina con le date che hanno prenotazioni (più recenti in alto)
+    const populateDateDropdown = (dateMsSet) => {
+        const select = document.getElementById('date-jump-select');
+        if (!select) return;
+        const sorted = Array.from(dateMsSet).sort((a, b) => b - a); // desc
+        let html = '<option value="">— Seleziona una data —</option>';
+        sorted.forEach(ms => {
+            const d = new Date(ms);
+            html += `<option value="${ms}">${formatDateFull(d)}</option>`;
+        });
+        select.innerHTML = html;
+    };
+
+    // Riepilogo ore volate per socio + cache voli + date disponibili (una sola lettura completa)
+    const renderMemberTotals = async () => {
+        const container = document.getElementById('member-totals');
+        if (!container) return;
+        container.innerHTML = '<p>Calcolo in corso...</p>';
+
+        try {
+            // Mappa id -> nome socio (una sola lettura della collezione users)
+            const usersSnapshot = await db.collection('users').get();
+            const userNames = {};
+            usersSnapshot.forEach(doc => {
+                const u = doc.data();
+                userNames[doc.id] = (u.nome && u.cognome) ? `${u.nome} ${u.cognome}` : (u.email || doc.id);
+            });
+
+            // Tutte le prenotazioni
+            const bookingsSnapshot = await db.collection('bookings').get();
+            const totalsBySocio = {}; // socio_id -> { minutes, voli }
+            const dateMsSet = new Set();
+            memberFlightsCache = {}; // reset cache
+
+            bookingsSnapshot.forEach(doc => {
+                const b = doc.data();
+                if (!b.socio_id) return;
+
+                const dateObj = bookingDateToDate(b.data);
+                let dateMs = null;
+                if (dateObj) {
+                    const midnight = new Date(dateObj);
+                    midnight.setHours(0, 0, 0, 0);
+                    dateMs = midnight.getTime();
+                    dateMsSet.add(dateMs);
+                }
+
+                const flight = formatFlightTime(b.hobbs_partenza, b.hobbs_arrivo);
+                const minutes = flight ? flight.totalMinutes : null;
+
+                // Cache: TUTTI i voli del socio (anche senza dati Hobbs completi)
+                if (!memberFlightsCache[b.socio_id]) {
+                    memberFlightsCache[b.socio_id] = {
+                        nome: userNames[b.socio_id] || `${b.socio_id} (utente cancellato)`,
+                        flights: []
+                    };
+                }
+                memberFlightsCache[b.socio_id].flights.push({
+                    dateMs,
+                    dateObj,
+                    ora_inizio: b.ora_inizio || null,
+                    ora_fine: b.ora_fine || null,
+                    hobbs_p: (b.hobbs_partenza !== undefined && b.hobbs_partenza !== null && b.hobbs_partenza !== '') ? b.hobbs_partenza : null,
+                    hobbs_a: (b.hobbs_arrivo !== undefined && b.hobbs_arrivo !== null && b.hobbs_arrivo !== '') ? b.hobbs_arrivo : null,
+                    minutes
+                });
+
+                // Totali: solo voli con Hobbs completo
+                if (flight) {
+                    if (!totalsBySocio[b.socio_id]) {
+                        totalsBySocio[b.socio_id] = { minutes: 0, voli: 0 };
+                    }
+                    totalsBySocio[b.socio_id].minutes += flight.totalMinutes;
+                    totalsBySocio[b.socio_id].voli += 1;
+                }
+            });
+
+            // Popola la tendina delle date
+            populateDateDropdown(dateMsSet);
+
+            const rows = Object.entries(totalsBySocio)
+                .map(([id, data]) => ({
+                    id,
+                    nome: userNames[id] || `${id} (utente cancellato)`,
+                    minutes: data.minutes,
+                    voli: data.voli
+                }))
+                .sort((x, y) => y.minutes - x.minutes);
+
+            if (rows.length === 0) {
+                container.innerHTML = '<p>Nessun volo con dati Hobbs registrato finora.</p>';
+                return;
+            }
+
+            let totalAll = 0;
+            let html = '<table class="totals-table"><thead><tr>' +
+                '<th>#</th><th>Socio</th><th>Voli</th><th>Ore</th><th>Minuti</th></tr></thead><tbody>';
+            rows.forEach((r, i) => {
+                totalAll += r.minutes;
+                const h = Math.floor(r.minutes / 60);
+                const m = r.minutes % 60;
+                const hm = `${h}h ${String(m).padStart(2, '0')}m`;
+                html += `<tr><td>${i + 1}</td>` +
+                    `<td class="socio-name" data-socio-id="${r.id}" title="Vedi tutti i voli">${r.nome}</td>` +
+                    `<td>${r.voli}</td><td>${hm}</td><td>${r.minutes}</td></tr>`;
+            });
+            const hAll = Math.floor(totalAll / 60);
+            const mAll = totalAll % 60;
+            html += `</tbody><tfoot><tr><td colspan="3"><strong>Totale aeromobile</strong></td>` +
+                `<td><strong>${hAll}h ${String(mAll).padStart(2, '0')}m</strong></td>` +
+                `<td><strong>${totalAll}</strong></td></tr></tfoot></table>` +
+                `<p class="totals-hint">👆 Tocca il nome di un socio per vedere il dettaglio di tutti i suoi voli</p>`;
+            container.innerHTML = html;
+        } catch (error) {
+            console.error('Errore nel calcolo dei totali:', error);
+            container.innerHTML = '<p style="color:red;">Errore nel calcolo dei totali: ' + error.message + '</p>';
+        }
+    };
+
+    // Mostra il dettaglio di tutti i voli di un socio (dalla cache)
+    const showMemberFlights = (socioId) => {
+        const data = memberFlightsCache[socioId];
+        const dialog = document.getElementById('member-flights-dialog');
+        const nameSpan = document.getElementById('member-flights-name');
+        const content = document.getElementById('member-flights-content');
+        if (!dialog || !content) return;
+
+        if (!data || data.flights.length === 0) {
+            nameSpan.textContent = data ? data.nome : '';
+            content.innerHTML = '<p>Nessun volo registrato per questo socio.</p>';
+            dialog.style.display = 'flex';
+            return;
+        }
+
+        nameSpan.textContent = data.nome;
+
+        // Ordina per data (più recente in alto), poi per ora di inizio
+        const flights = data.flights.slice().sort((a, b) => {
+            const da = a.dateMs || 0;
+            const dbb = b.dateMs || 0;
+            if (dbb !== da) return dbb - da;
+            return (b.ora_inizio || '').localeCompare(a.ora_inizio || '');
+        });
+
+        let totalMinutes = 0;
+        let html = '<table class="flights-table"><thead><tr>' +
+            '<th>Data</th><th>Orario</th><th>Hobbs Part.</th><th>Hobbs Arr.</th><th>Minuti</th>' +
+            '</tr></thead><tbody>';
+
+        flights.forEach(f => {
+            const dataLabel = f.dateObj ? formatDateFull(f.dateObj) : '-';
+            const orario = (f.ora_inizio && f.ora_fine) ? `${f.ora_inizio} - ${f.ora_fine}` : '-';
+            const hp = (f.hobbs_p !== null) ? f.hobbs_p : '-';
+            const ha = (f.hobbs_a !== null) ? f.hobbs_a : '-';
+            let minLabel = '-';
+            if (f.minutes !== null) {
+                totalMinutes += f.minutes;
+                minLabel = String(f.minutes);
+            }
+            html += `<tr><td>${dataLabel}</td><td>${orario}</td><td>${hp}</td><td>${ha}</td><td>${minLabel}</td></tr>`;
+        });
+
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        html += `</tbody><tfoot><tr><td colspan="4"><strong>Totale</strong></td>` +
+            `<td><strong>${totalMinutes} min (${h}h ${String(m).padStart(2, '0')}m)</strong></td></tr></tfoot></table>`;
+
+        content.innerHTML = html;
+        dialog.style.display = 'flex';
+    };
+
     // Show booking details dialog (visible to all)
     const showBookingDetails = (booking, isOwner) => {
         const dialog = document.getElementById('booking-details-dialog');
@@ -381,9 +578,9 @@ try {
             arrivoPhotoContainer.style.display = 'none';
         }
         
-        if (hobbsP && hobbsA) {
-            const duration = (parseFloat(hobbsA) - parseFloat(hobbsP)).toFixed(1);
-            document.getElementById('detail-hobbs-duration').textContent = `${duration} ore`;
+        const flight = formatFlightTime(hobbsP, hobbsA);
+        if (flight) {
+            document.getElementById('detail-hobbs-duration').textContent = flight.label;
         } else {
             document.getElementById('detail-hobbs-duration').textContent = '-';
         }
@@ -647,6 +844,7 @@ try {
             }
             
             dialog.style.display = 'none';
+            renderMemberTotals();
         } catch (error) {
             console.error('Errore Hobbs:', error);
             errorMsg.textContent = 'Errore nel salvataggio: ' + error.message;
@@ -1205,6 +1403,39 @@ try {
         await addBookingLogic(startTimeInput.value, endTimeInput.value);
     });
 
+    // --- Aggiorna totali ore per socio ---
+    const refreshTotalsButton = document.getElementById('refresh-totals-button');
+    if (refreshTotalsButton) {
+        refreshTotalsButton.addEventListener('click', () => {
+            renderMemberTotals();
+        });
+    }
+
+    // --- Click su un nome socio: apre il dettaglio dei suoi voli ---
+    const memberTotalsContainer = document.getElementById('member-totals');
+    if (memberTotalsContainer) {
+        memberTotalsContainer.addEventListener('click', (e) => {
+            const cell = e.target.closest('.socio-name');
+            if (cell && cell.dataset.socioId) {
+                showMemberFlights(cell.dataset.socioId);
+            }
+        });
+    }
+
+    // --- Tendina date: salta a un giorno passato/futuro con prenotazioni ---
+    const dateJumpSelect = document.getElementById('date-jump-select');
+    if (dateJumpSelect) {
+        dateJumpSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (!val) return;
+            currentDisplayDate = new Date(Number(val));
+            currentDisplayDate.setHours(0, 0, 0, 0);
+            updateDateDisplay();
+            listenToBookings();
+            loadWeatherData();
+        });
+    }
+
     // --- Gestione UI Authentication ---
     const updateUI = async (user) => {
         if (user) {
@@ -1253,6 +1484,7 @@ try {
             
             listenToBookings();
             loadWeatherData();
+            renderMemberTotals();
 
         } else {
             window.currentUser = null; 
