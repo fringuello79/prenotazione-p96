@@ -637,12 +637,14 @@ try {
         if (booking.hobbs_partenza_photo_url) {
             const img = document.createElement('img');
             img.src = booking.hobbs_partenza_photo_url;
+            img.classList.add('zoomable');
             document.getElementById('hobbs-partenza-photo-preview').appendChild(img);
         }
         
         if (booking.hobbs_arrivo_photo_url) {
             const img = document.createElement('img');
             img.src = booking.hobbs_arrivo_photo_url;
+            img.classList.add('zoomable');
             document.getElementById('hobbs-arrivo-photo-preview').appendChild(img);
         }
         
@@ -653,11 +655,80 @@ try {
         dialog.style.display = 'flex';
     };
     
+    // Comprime un'immagine lato client e ne corregge l'orientamento (EXIF).
+    // Riduce il lato massimo a maxDim px ed esporta in JPEG. Se qualcosa va storto,
+    // restituisce il file originale senza bloccare l'upload.
+    const compressImage = async (file, maxDim = 1600, quality = 0.82) => {
+        if (!file || !file.type || !file.type.startsWith('image/')) return file;
+
+        const drawToBlob = (source, width, height) => new Promise((resolve) => {
+            const scale = Math.min(1, maxDim / Math.max(width, height));
+            const w = Math.max(1, Math.round(width * scale));
+            const h = Math.max(1, Math.round(height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(source, 0, 0, w, h);
+            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+        });
+
+        const toFile = (blob) => {
+            try {
+                return new File([blob], ((file.name || 'hobbs').replace(/\.[^.]+$/, '')) + '.jpg', { type: 'image/jpeg' });
+            } catch (e) {
+                return blob; // se File non è costruibile, il Blob va comunque bene per l'upload
+            }
+        };
+
+        // Percorso preferito: createImageBitmap con orientamento da EXIF
+        try {
+            if (typeof createImageBitmap === 'function') {
+                let bitmap;
+                try {
+                    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+                } catch (e) {
+                    bitmap = await createImageBitmap(file); // alcuni browser ignorano le opzioni
+                }
+                const blob = await drawToBlob(bitmap, bitmap.width, bitmap.height);
+                if (bitmap.close) bitmap.close();
+                if (blob && blob.size < file.size) return toFile(blob);
+                return file;
+            }
+        } catch (e) {
+            console.warn('Compressione (createImageBitmap) non riuscita, uso fallback:', e);
+        }
+
+        // Fallback: Image + canvas (orientamento gestito dal browser)
+        try {
+            const dataUrl = await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.onerror = reject;
+                r.readAsDataURL(file);
+            });
+            const img = await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = reject;
+                image.src = dataUrl;
+            });
+            const blob = await drawToBlob(img, img.naturalWidth, img.naturalHeight);
+            if (blob && blob.size < file.size) return toFile(blob);
+        } catch (e) {
+            console.warn('Compressione (fallback) non riuscita, invio originale:', e);
+        }
+        return file;
+    };
+
     // Helper function to upload photo to ImgBB
     const uploadPhoto = async (file, bookingId, photoType) => {
         if (!file) return null;
         
         try {
+            // Comprimi e correggi orientamento prima dell'upload
+            file = await compressImage(file);
+
             // Convert file to base64
             const reader = new FileReader();
             const base64Promise = new Promise((resolve, reject) => {
@@ -879,6 +950,35 @@ try {
     
     // Setup dialog event listeners
     const setupDialogListeners = () => {
+        // Lightbox: apri foto a schermo intero al click su un'immagine .zoomable
+        const lightbox = document.getElementById('photo-lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const openLightbox = (src) => {
+            if (!src || !lightbox || !lightboxImg) return;
+            lightboxImg.src = src;
+            lightbox.style.display = 'flex';
+        };
+        const closeLightbox = () => {
+            if (!lightbox) return;
+            lightbox.style.display = 'none';
+            lightboxImg.removeAttribute('src');
+        };
+        document.addEventListener('click', (e) => {
+            const img = e.target.closest && e.target.closest('img.zoomable');
+            if (img && img.src) {
+                e.stopPropagation();
+                openLightbox(img.src);
+            }
+        });
+        if (lightbox) {
+            lightbox.addEventListener('click', closeLightbox);
+            const lbClose = lightbox.querySelector('.lightbox-close');
+            if (lbClose) lbClose.addEventListener('click', closeLightbox);
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && lightbox.style.display === 'flex') closeLightbox();
+            });
+        }
+
         // Close buttons
         document.querySelectorAll('.close-button').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -926,7 +1026,7 @@ try {
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    preview.innerHTML = `<img src="${event.target.result}" alt="Preview Partenza">`;
+                    preview.innerHTML = `<img class="zoomable" src="${event.target.result}" alt="Preview Partenza">`;
                 };
                 reader.readAsDataURL(file);
             }
@@ -939,7 +1039,7 @@ try {
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    preview.innerHTML = `<img src="${event.target.result}" alt="Preview Arrivo">`;
+                    preview.innerHTML = `<img class="zoomable" src="${event.target.result}" alt="Preview Arrivo">`;
                 };
                 reader.readAsDataURL(file);
             }

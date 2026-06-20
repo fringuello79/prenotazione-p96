@@ -123,11 +123,11 @@
                     <div class="hobbs-display">
                         <p><strong>Hobbs Partenza:</strong> <span id="detail-hobbs-partenza">Non registrato</span></p>
                         <div id="detail-hobbs-partenza-photo-container" class="photo-display" style="display: none;">
-                            <img id="detail-hobbs-partenza-photo" alt="Foto Hobbs Partenza">
+                            <img id="detail-hobbs-partenza-photo" class="zoomable" alt="Foto Hobbs Partenza">
                         </div>
                         <p><strong>Hobbs Arrivo:</strong> <span id="detail-hobbs-arrivo">Non registrato</span></p>
                         <div id="detail-hobbs-arrivo-photo-container" class="photo-display" style="display: none;">
-                            <img id="detail-hobbs-arrivo-photo" alt="Foto Hobbs Arrivo">
+                            <img id="detail-hobbs-arrivo-photo" class="zoomable" alt="Foto Hobbs Arrivo">
                         </div>
                         <p class="hobbs-duration"><strong>Ore di volo:</strong> <span id="detail-hobbs-duration">-</span></p>
                     </div>
@@ -183,6 +183,12 @@
                 <h3>Voli di <span id="member-flights-name"></span></h3>
                 <div id="member-flights-content"></div>
             </div>
+        </div>
+
+        <!-- Lightbox foto Hobbs a schermo intero -->
+        <div id="photo-lightbox" class="lightbox" style="display: none;">
+            <span class="lightbox-close">&times;</span>
+            <img id="lightbox-img" alt="Foto Hobbs ingrandita">
         </div>
     </div>
 
