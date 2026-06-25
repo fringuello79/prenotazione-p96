@@ -776,9 +776,12 @@ try {
     // Helper function to find consecutive bookings
     const findConsecutiveBookings = async (currentBooking) => {
         const bookingDate = currentBooking.data;
-        const userId = window.currentUser.uid;
-        
-        // Query bookings for the same date and user
+        // Usa il PROPRIETARIO della prenotazione, non l'utente loggato:
+        // così funziona anche quando l'admin modifica la prenotazione di un altro socio.
+        const userId = currentBooking.socio_id;
+        if (!userId || !bookingDate) return [];
+
+        // Query bookings for the same date and owner
         const snapshot = await db.collection('bookings')
             .where('data', '==', bookingDate)
             .where('socio_id', '==', userId)
@@ -786,22 +789,25 @@ try {
         
         if (snapshot.empty) return [];
         
-        // Sort bookings by start time
+        // Sort bookings by start time (gestendo eventuali orari mancanti)
         const bookings = [];
         snapshot.forEach(doc => {
             bookings.push({ id: doc.id, ...doc.data() });
         });
-        bookings.sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+        bookings.sort((a, b) => (a.ora_inizio || '').localeCompare(b.ora_inizio || ''));
         
         // Find consecutive group
         const consecutiveGroup = [currentBooking];
         const currentIndex = bookings.findIndex(b => b.id === currentBooking.id);
+
+        // Se la prenotazione non è tra i risultati, niente catena consecutiva (evita bookings[-1])
+        if (currentIndex === -1) return [];
         
         // Look forward
         for (let i = currentIndex + 1; i < bookings.length; i++) {
             const prevEnd = bookings[i-1].ora_fine;
             const currStart = bookings[i].ora_inizio;
-            if (prevEnd === currStart) {
+            if (prevEnd && currStart && prevEnd === currStart) {
                 consecutiveGroup.push(bookings[i]);
             } else {
                 break;
@@ -812,7 +818,7 @@ try {
         for (let i = currentIndex - 1; i >= 0; i--) {
             const currEnd = bookings[i].ora_fine;
             const nextStart = bookings[i+1].ora_inizio;
-            if (currEnd === nextStart) {
+            if (currEnd && nextStart && currEnd === nextStart) {
                 consecutiveGroup.unshift(bookings[i]);
             } else {
                 break;
