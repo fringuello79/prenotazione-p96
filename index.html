@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prenotazioni Tecnam P96</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="version-info">rev3 - 20/06/2026</div>
+        <img src="logo.jpg" alt="Logo Aeroclub dei Marsi" id="aeroclub-logo">
+        <h1>Benvenuto all'Aeroclub dei Marsi</h1>
+        <p id="loading-message">Caricamento applicazione...</p>
+
+        <!-- Sezione Login/Registrazione -->
+        <div id="auth-container">
+            <h2>Accedi o Registrati</h2>
+
+            <input type="text" id="signup-name" placeholder="Nome (solo per la registrazione)" />
+            <input type="text" id="signup-surname" placeholder="Cognome (solo per la registrazione)" />
+
+            <input type="email" id="email" placeholder="Email" required />
+            <input type="password" id="password" placeholder="Password" required />
+            <button id="login-button">Accedi</button>
+            <button id="signup-button">Registrati</button>
+            <p id="auth-error-message" style="color: red;"></p>
+            <p><a href="#" id="reset-password-link">Hai dimenticato la password?</a></p>
+        </div>
+
+        <!-- Sezione App (visibile dopo il login) -->
+        <div id="app-content" style="display: none;">
+            <div class="user-info-bar">
+                <h2>Bentornato, <span id="user-display-name"></span></h2>
+                <button id="logout-button">Esci</button>
+            </div>
+
+            <hr>
+
+            <!-- Sezione Stato del Giorno -->
+            <div class="day-status">
+                <h3>Stato del Giorno:</h3>
+                <div class="date-navigation">
+                    <button id="prev-day-button">&lt; Giorno Prec.</button>
+                    <span id="display-date-full"></span>
+                    <button id="next-day-button">Giorno Succ. &gt;</button>
+                </div>
+                <div class="date-jump">
+                    <label for="date-jump-select">🔎 Cerca un giorno con voli:</label>
+                    <select id="date-jump-select">
+                        <option value="">— Seleziona una data —</option>
+                    </select>
+                </div>
+                <p>Alba: <span id="sunrise-time">Caricamento...</span> | Tramonto: <span id="sunset-time">Caricamento...</span></p>
+                <p>Meteo: <span id="weather-info">Caricamento...</span></p>
+                <p>Density Altitude stimata: <span id="density-altitude">Caricamento...</span> ft</p>
+                <p class="disclaimer">(dato indicativo – verificare sempre prima del volo)</p>
+            </div>
+
+            <!-- ⭐ SEZIONE GRAFICO METEO E DA (AGGIUNTA) ⭐ -->
+            <div class="meteo-chart-section">
+                <h3>Grafico Meteo Giornaliero</h3>
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartActual"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="meteoChartForecast"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Sezione Tabella Oraria delle Prenotazioni -->
+            <div class="schedule-section">
+                <h3>Tabella Prenotazioni</h3>
+                <div id="hourly-schedule">
+                    <p>Caricamento tabella oraria...</p>
+                </div>
+
+                <h4>Prenotazione oraria personalizzata</h4>
+                <div class="new-booking-form">
+                    <input type="time" id="start-time" value="09:00" required>
+                    <input type="time" id="end-time" value="10:00" required>
+                    <button id="add-booking-button">Prenota</button>
+                    <p id="booking-error-message" style="color: red;"></p>
+                </div>
+
+                <!-- PDF Download Section -->
+                <div class="pdf-download-section">
+                    <a href="Checklist Tecnam P96 Golf.pdf" download class="pdf-download-button">
+                        📄 Scarica Checklist Tecnam P96 Golf
+                    </a>
+                    <a href="Regole preuso P96 rev 2026-07-04.pdf" download class="pdf-download-button">
+                        📄 Scarica Regole preuso P96 (rev. 2 – 04/07/2026)
+                    </a>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Sezione Riepilogo Ore Volate per Socio -->
+            <div class="totals-section">
+                <h3>🏆 Ore Volate per Socio</h3>
+                <p class="totals-subtitle">Totale calcolato dalle letture Hobbs registrate (partenza → arrivo)</p>
+                <div id="member-totals">
+                    <p>Premi "Aggiorna totali" per calcolare.</p>
+                </div>
+                <button id="refresh-totals-button" class="primary-button">🔄 Aggiorna totali</button>
+                <button id="show-consecutive-button" class="primary-button">📋 Registro consecutivo del contatore</button>
+            </div>
+        </div>
+
+        <!-- Booking Details Dialog -->
+        <div id="booking-details-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>Dettagli Prenotazione</h3>
+                <div id="booking-details-content">
+                    <p><strong>Socio:</strong> <span id="detail-socio"></span></p>
+                    <p><strong>Data:</strong> <span id="detail-date"></span></p>
+                    <p><strong>Orario:</strong> <span id="detail-time"></span></p>
+                    <div class="hobbs-display">
+                        <p><strong>Hobbs Partenza:</strong> <span id="detail-hobbs-partenza">Non registrato</span></p>
+                        <div id="detail-hobbs-partenza-photo-container" class="photo-display" style="display: none;">
+                            <img id="detail-hobbs-partenza-photo" class="zoomable" alt="Foto Hobbs Partenza">
+                        </div>
+                        <p><strong>Hobbs Arrivo:</strong> <span id="detail-hobbs-arrivo">Non registrato</span></p>
+                        <div id="detail-hobbs-arrivo-photo-container" class="photo-display" style="display: none;">
+                            <img id="detail-hobbs-arrivo-photo" class="zoomable" alt="Foto Hobbs Arrivo">
+                        </div>
+                        <p class="hobbs-duration"><strong>Ore di volo:</strong> <span id="detail-hobbs-duration">-</span></p>
+                    </div>
+                </div>
+                <div class="modal-buttons" id="booking-action-buttons" style="display: none;">
+                    <button id="edit-hobbs-from-details" class="primary-button">✏️ Modifica Hobbs</button>
+                    <button id="delete-from-details" class="danger-button">🗑️ Elimina Prenotazione</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hobbs Edit Dialog -->
+        <div id="hobbs-edit-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>Modifica Dati Hobbs</h3>
+                <div id="hobbs-edit-content">
+                    <p><strong>Prenotazione:</strong> <span id="edit-booking-info"></span></p>
+                    <div class="hobbs-form">
+                        <label for="hobbs-partenza-input">Hobbs Partenza:</label>
+                        <input type="number" id="hobbs-partenza-input" step="0.1" min="0" placeholder="es. 123.4">
+                        
+                        <label for="hobbs-partenza-photo">Foto Hobbs Partenza (opzionale):</label>
+                        <input type="file" id="hobbs-partenza-photo" accept="image/*">
+                        <div id="hobbs-partenza-photo-preview" class="photo-preview"></div>
+                        
+                        <label for="hobbs-arrivo-input">Hobbs Arrivo:</label>
+                        <input type="number" id="hobbs-arrivo-input" step="0.1" min="0" placeholder="es. 125.1">
+                        
+                        <label for="hobbs-arrivo-photo">Foto Hobbs Arrivo (opzionale):</label>
+                        <input type="file" id="hobbs-arrivo-photo" accept="image/*">
+                        <div id="hobbs-arrivo-photo-preview" class="photo-preview"></div>
+                        
+                        <p class="hobbs-help-text" style="line-height: 1.3; margin: 8px 0;">
+                            💡 Inserisci la lettura del contatore Hobbs prima e dopo il volo (decimi d'ora, es. 1234.5)<br>
+                            📷 Puoi scattare la foto sul momento oppure sceglierne una dalla galleria del telefono<br>
+                            ⏱️ Le foto possono essere caricate/modificate entro 4 ore dalla fine della prenotazione
+                        </p>
+                        <p id="hobbs-error-message" style="color: red;"></p>
+                        
+                        <div class="modal-buttons">
+                            <button id="save-hobbs-button" class="primary-button">Salva</button>
+                            <button id="cancel-hobbs-button" class="secondary-button">Annulla</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Member Flights Dialog -->
+        <div id="member-flights-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>Voli di <span id="member-flights-name"></span></h3>
+                <div id="member-flights-content"></div>
+            </div>
+        </div>
+
+        <!-- Registro consecutivo del contatore -->
+        <div id="consecutive-flights-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>📋 Registro consecutivo del contatore</h3>
+                <p class="consecutive-subtitle">Tutti i voli completi in ordine di contatore. Le righe grigie sono buchi (voli non ancora inseriti); le righe rosse segnalano un contatore incoerente.</p>
+                <div id="consecutive-flights-content"></div>
+            </div>
+        </div>
+
+        <!-- Lightbox foto Hobbs a schermo intero -->
+        <div id="photo-lightbox" class="lightbox" style="display: none;">
+            <span class="lightbox-close">&times;</span>
+            <img id="lightbox-img" alt="Foto Hobbs ingrandita">
+        </div>
+    </div>
+
+    <!-- Firebase SDKs (Storage rimosso, ora usiamo Imgur) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-analytics-compat.js"></script>
+
+    <!-- Chart.js (necessario per il grafico) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Script personalizzato -->
+    <script src="script.js"></script>
+
+    <!-- Airplane watermark -->
+    <img src="https://i.ibb.co/5Z30NT4/P96-senza-sfondo.png" alt="Tecnam P96" id="airplane-watermark">
+</body>
+</html>
