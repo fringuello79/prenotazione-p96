@@ -721,8 +721,12 @@ hr {
 .pdf-download-section {
     width: 100%;
     margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
     text-align: center;
-    padding: 20px 0;
+    padding: 24px 0;
     border-top: 2px solid #e8eaf6;
 }
 
@@ -970,4 +974,20 @@ img.zoomable:hover {
     font-size: 0.82em;
     color: #70757a;
     margin: 8px 0 0 0;
+}
+
+/* --- Larghezza/uniformità tasti PDF (evita sovrapposizioni) --- */
+.pdf-download-button {
+    width: 100%;
+    max-width: 440px;
+    box-sizing: border-box;
+}
+
+/* --- Segno "volo unico" nella tabella del giorno: minuscolo e sbiadito --- */
+.unified-marker {
+    font-size: 0.55em;
+    opacity: 0.4;
+    margin-left: 4px;
+    vertical-align: super;
+    filter: grayscale(1);
 }

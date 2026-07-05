@@ -219,6 +219,28 @@ try {
     const renderHourlySchedule = (allBookings) => {
         hourlyScheduleDiv.innerHTML = '';
 
+        // Individua le prenotazioni che fanno parte di un "volo unico":
+        // fasce attaccate dello stesso socio con contatore di partenza e arrivo identici.
+        const unifiedBookingIds = new Set();
+        (() => {
+            const withHobbs = allBookings.filter(b => b.hobbs_partenza && b.hobbs_arrivo && b.ora_inizio && b.ora_fine);
+            const grp = {};
+            withHobbs.forEach(b => {
+                const key = `${b.socio_id}|${parseFloat(b.hobbs_partenza)}|${parseFloat(b.hobbs_arrivo)}`;
+                (grp[key] = grp[key] || []).push(b);
+            });
+            Object.values(grp).forEach(list => {
+                if (list.length < 2) return;
+                list.sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+                for (let i = 1; i < list.length; i++) {
+                    if (list[i - 1].ora_fine === list[i].ora_inizio) {
+                        unifiedBookingIds.add(list[i - 1].id);
+                        unifiedBookingIds.add(list[i].id);
+                    }
+                }
+            });
+        })();
+
         // Skip hours that are always dark even in summer (0-5 and 22-23)
         for (let hour = 6; hour <= 21; hour++) {
             const hourBlock = document.createElement('div');
@@ -299,6 +321,9 @@ try {
                     
                     // Build slot content with Hobbs data if available
                     let slotHTML = `<div class="slot-content">${bookedInfo}`;
+                    if (unifiedBookingIds.has(bookingIdForSlot)) {
+                        slotHTML += `<span class="unified-marker" title="Volo unico: fasce consecutive unite (stesso contatore)">🔗</span>`;
+                    }
                     if (bookingDataForSlot && (bookingDataForSlot.hobbs_partenza || bookingDataForSlot.hobbs_arrivo)) {
                         slotHTML += `<div class="hobbs-info">`;
                         if (bookingDataForSlot.hobbs_partenza) {
@@ -415,6 +440,12 @@ try {
             allCompleteFlights = []; // reset registro contatore
             incompleteFlightsCount = 0;
 
+            const nameOf = (id) => userNames[id] || `${id} (utente cancellato)`;
+
+            // FASE 1: raccogli i voli completi e le prenotazioni incomplete
+            const rawComplete = []; // voli con entrambi i valori del contatore
+            const rawOther = [];    // prenotazioni senza volo completo (per il dettaglio socio)
+
             bookingsSnapshot.forEach(doc => {
                 const b = doc.data();
                 if (!b.socio_id) return;
@@ -428,56 +459,101 @@ try {
                     dateMsSet.add(dateMs);
                 }
 
-                const flight = formatFlightTime(b.hobbs_partenza, b.hobbs_arrivo);
-                const minutes = flight ? flight.totalMinutes : null;
-
-                // Cache: TUTTI i voli del socio (anche senza dati Hobbs completi)
-                if (!memberFlightsCache[b.socio_id]) {
-                    memberFlightsCache[b.socio_id] = {
-                        nome: userNames[b.socio_id] || `${b.socio_id} (utente cancellato)`,
-                        flights: []
-                    };
-                }
-                memberFlightsCache[b.socio_id].flights.push({
-                    dateMs,
-                    dateObj,
-                    ora_inizio: b.ora_inizio || null,
-                    ora_fine: b.ora_fine || null,
-                    hobbs_p: (b.hobbs_partenza !== undefined && b.hobbs_partenza !== null && b.hobbs_partenza !== '') ? b.hobbs_partenza : null,
-                    hobbs_a: (b.hobbs_arrivo !== undefined && b.hobbs_arrivo !== null && b.hobbs_arrivo !== '') ? b.hobbs_arrivo : null,
-                    minutes
-                });
-
-                // Totali: solo voli con Hobbs completo
-                if (flight) {
-                    if (!totalsBySocio[b.socio_id]) {
-                        totalsBySocio[b.socio_id] = { minutes: 0, voli: 0 };
-                    }
-                    totalsBySocio[b.socio_id].minutes += flight.totalMinutes;
-                    totalsBySocio[b.socio_id].voli += 1;
-                }
-
-                // Registro contatore
                 const hpRaw = (b.hobbs_partenza !== undefined && b.hobbs_partenza !== null && b.hobbs_partenza !== '') ? b.hobbs_partenza : null;
                 const haRaw = (b.hobbs_arrivo !== undefined && b.hobbs_arrivo !== null && b.hobbs_arrivo !== '') ? b.hobbs_arrivo : null;
+                const flight = formatFlightTime(b.hobbs_partenza, b.hobbs_arrivo);
+
                 if (flight) {
-                    // Volo completo: entra nel registro consecutivo
-                    allCompleteFlights.push({
-                        dateObj,
-                        dateMs,
+                    rawComplete.push({
+                        socio_id: b.socio_id,
+                        socio: b.socio_nome || nameOf(b.socio_id),
+                        dateObj, dateMs,
                         ora_inizio: b.ora_inizio || null,
                         ora_fine: b.ora_fine || null,
-                        hp_raw: hpRaw,
-                        ha_raw: haRaw,
-                        hp: parseFloat(hpRaw),
-                        ha: parseFloat(haRaw),
-                        minutes: flight.totalMinutes,
-                        socio: b.socio_nome || userNames[b.socio_id] || b.socio_id
+                        hp_raw: hpRaw, ha_raw: haRaw,
+                        hp: parseFloat(hpRaw), ha: parseFloat(haRaw),
+                        minutes: flight.totalMinutes
                     });
-                } else if ((hpRaw !== null) !== (haRaw !== null)) {
-                    // Esattamente un valore presente = volo incompleto -> escluso e contato
-                    incompleteFlightsCount++;
+                } else {
+                    rawOther.push({
+                        socio_id: b.socio_id,
+                        dateObj, dateMs,
+                        ora_inizio: b.ora_inizio || null,
+                        ora_fine: b.ora_fine || null,
+                        hobbs_p: hpRaw, hobbs_a: haRaw
+                    });
+                    // Esattamente un valore presente = volo incompleto (escluso e contato)
+                    if ((hpRaw !== null) !== (haRaw !== null)) incompleteFlightsCount++;
                 }
+            });
+
+            // FASE 2: unifica le fasce CONSECUTIVE con contatore IDENTICO (stesso socio, stesso giorno).
+            // Es. 8:00-8:30 + 8:30-9:00 con stessi valori Hobbs = un solo volo, non due.
+            // Contatore diverso => non si unisce (sono due voli veri).
+            const groups = {};
+            rawComplete.forEach(f => {
+                const key = `${f.socio_id}|${f.dateMs}|${f.hp}|${f.ha}`;
+                (groups[key] = groups[key] || []).push(f);
+            });
+
+            const mergedFlights = [];
+            Object.values(groups).forEach(group => {
+                if (group.length === 1) {
+                    mergedFlights.push({ ...group[0], slotCount: 1 });
+                    return;
+                }
+                // Ordina per ora di inizio e fondi solo i tratti di fasce ATTACCATE
+                group.sort((a, b) => (a.ora_inizio || '').localeCompare(b.ora_inizio || ''));
+                let run = [group[0]];
+                const flush = () => {
+                    const first = run[0], last = run[run.length - 1];
+                    mergedFlights.push({
+                        ...first,
+                        ora_inizio: first.ora_inizio,
+                        ora_fine: last.ora_fine,
+                        slotCount: run.length
+                    });
+                    run = [];
+                };
+                for (let i = 1; i < group.length; i++) {
+                    const prev = run[run.length - 1];
+                    if (prev.ora_fine && group[i].ora_inizio && prev.ora_fine === group[i].ora_inizio) {
+                        run.push(group[i]); // fascia attaccata -> stesso volo
+                    } else {
+                        flush(); run = [group[i]];
+                    }
+                }
+                if (run.length) flush();
+            });
+
+            // FASE 3: costruisci totali, registro e dettaglio socio dai voli UNIFICATI
+            allCompleteFlights = mergedFlights;
+
+            mergedFlights.forEach(f => {
+                if (!totalsBySocio[f.socio_id]) totalsBySocio[f.socio_id] = { minutes: 0, voli: 0 };
+                totalsBySocio[f.socio_id].minutes += f.minutes;
+                totalsBySocio[f.socio_id].voli += 1;
+            });
+
+            const ensureMember = (id) => {
+                if (!memberFlightsCache[id]) memberFlightsCache[id] = { nome: nameOf(id), flights: [] };
+                return memberFlightsCache[id];
+            };
+            mergedFlights.forEach(f => {
+                ensureMember(f.socio_id).flights.push({
+                    dateMs: f.dateMs, dateObj: f.dateObj,
+                    ora_inizio: f.ora_inizio, ora_fine: f.ora_fine,
+                    hobbs_p: f.hp_raw, hobbs_a: f.ha_raw,
+                    minutes: f.minutes
+                });
+            });
+            rawOther.forEach(f => {
+                ensureMember(f.socio_id).flights.push({
+                    dateMs: f.dateMs, dateObj: f.dateObj,
+                    ora_inizio: f.ora_inizio, ora_fine: f.ora_fine,
+                    hobbs_p: f.hobbs_p, hobbs_a: f.hobbs_a,
+                    minutes: null
+                });
             });
 
             // Popola la tendina delle date
