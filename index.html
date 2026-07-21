@@ -126,6 +126,37 @@
                 <button id="refresh-totals-button" class="primary-button">🔄 Aggiorna totali</button>
                 <button id="show-consecutive-button" class="primary-button">📋 Registro consecutivo del contatore</button>
             </div>
+
+            <hr>
+
+            <!-- Strumenti di volo: meteo (Windy) + NOTAM/spazi aerei -->
+            <div class="tools-section">
+                <h3>🧭 Strumenti di volo</h3>
+
+                <div class="tool-block">
+                    <h4>🌬️ Meteo e vento su Celano (Windy)</h4>
+                    <div class="windy-overlays">
+                        <button type="button" class="windy-btn active" data-overlay="wind">Vento</button>
+                        <button type="button" class="windy-btn" data-overlay="gust">Raffiche</button>
+                        <button type="button" class="windy-btn" data-overlay="rain">Pioggia</button>
+                        <button type="button" class="windy-btn" data-overlay="clouds">Nuvole</button>
+                    </div>
+                    <div class="windy-wrap">
+                        <iframe id="windy-frame" title="Meteo Windy Celano"
+                            src="https://embed.windy.com/embed2.html?lat=42.0517865&lon=13.5574166&detailLat=42.0517865&detailLon=13.5574166&zoom=9&level=surface&overlay=wind&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=default&radarRange=-1"
+                            frameborder="0"></iframe>
+                    </div>
+                </div>
+
+                <div class="tool-block">
+                    <h4>📋 NOTAM e spazi aerei</h4>
+                    <a href="https://notambriefing.com/fir/roma" target="_blank" rel="noopener noreferrer" class="tool-link-button">
+                        📋 NOTAM LIRR (Roma FIR) + spazi aerei
+                    </a>
+                </div>
+
+                <p class="tools-disclaimer">Strumenti di supporto: per il briefing pre-volo consultare sempre le fonti ufficiali.</p>
+            </div>
         </div>
 
         <!-- Booking Details Dialog -->
@@ -147,6 +178,9 @@
                             <img id="detail-hobbs-arrivo-photo" class="zoomable" alt="Foto Hobbs Arrivo">
                         </div>
                         <p class="hobbs-duration"><strong>Ore di volo:</strong> <span id="detail-hobbs-duration">-</span></p>
+                        <p><strong>⛽ Carburante Partenza:</strong> <span id="detail-carburante-partenza">-</span></p>
+                        <p><strong>⛽ Carburante Arrivo:</strong> <span id="detail-carburante-arrivo">-</span></p>
+                        <p id="detail-carburante-consumo-row" style="display: none;"><strong>Carburante consumato:</strong> <span id="detail-carburante-consumo">-</span></p>
                     </div>
                 </div>
                 <div class="modal-buttons" id="booking-action-buttons" style="display: none;">

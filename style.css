@@ -1075,3 +1075,76 @@ img.zoomable:hover {
     background: #f7f8fc;
     border-radius: 8px;
 }
+
+/* --- Strumenti di volo (Windy + NOTAM) --- */
+.tools-section {
+    width: 100%;
+    max-width: 680px;
+    margin: 10px auto 0 auto;
+    text-align: center;
+}
+.tools-section h4 {
+    margin: 4px 0 10px 0;
+    color: #2c3e50;
+}
+.tool-block {
+    margin: 14px 0 22px 0;
+}
+.windy-overlays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+.windy-btn {
+    background: #eef0fb;
+    color: #4a3f9e;
+    border: 1px solid #d7dbf2;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.windy-btn.active {
+    background: var(--primary-gradient);
+    color: #fff;
+    border-color: transparent;
+}
+.windy-wrap {
+    width: 100%;
+    height: 420px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(102, 126, 234, 0.15);
+}
+.windy-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+.tool-link-button {
+    display: inline-block;
+    width: 100%;
+    max-width: 360px;
+    background: var(--primary-gradient);
+    color: #fff;
+    text-decoration: none;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+.tool-link-button:hover {
+    transform: translateY(-2px);
+}
+.tools-disclaimer {
+    font-size: 0.8em;
+    color: #70757a;
+    margin-top: 6px;
+}

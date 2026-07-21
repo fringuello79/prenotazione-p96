@@ -426,9 +426,18 @@ try {
         const hasFuel = (lastFuel !== null && lastFuel !== undefined && !isNaN(lastFuel));
         const hasConsumption = (avgConsumption && avgConsumption > 0 && fuelFlightCount > 0);
 
-        // La card compare se c'è almeno il livello o il consumo medio
+        // La card compare sempre; se non c'è ancora alcun dato, mostra uno stato vuoto
         if (!hasFuel && !hasConsumption) {
-            card.style.display = 'none';
+            const gaugeEl0 = document.querySelector('#aircraft-status .fuel-gauge');
+            if (gaugeEl0) gaugeEl0.style.display = 'none';
+            const meta0 = document.getElementById('fuel-meta');
+            if (meta0) {
+                meta0.textContent = "Nessuna lettura carburante registrata finora: comparirà qui quando un socio inserirà il carburante all'arrivo del volo.";
+                meta0.style.display = '';
+            }
+            const cons0 = document.getElementById('fuel-consumption');
+            if (cons0) cons0.style.display = 'none';
+            card.style.display = '';
             return;
         }
 
@@ -867,6 +876,20 @@ try {
             document.getElementById('detail-hobbs-duration').textContent = flight.label;
         } else {
             document.getElementById('detail-hobbs-duration').textContent = '-';
+        }
+
+        // Carburante
+        const carbP = (booking.carburante_partenza !== undefined && booking.carburante_partenza !== null && booking.carburante_partenza !== '') ? parseFloat(booking.carburante_partenza) : null;
+        const carbA = (booking.carburante_arrivo !== undefined && booking.carburante_arrivo !== null && booking.carburante_arrivo !== '') ? parseFloat(booking.carburante_arrivo) : null;
+        document.getElementById('detail-carburante-partenza').textContent = (carbP !== null) ? `${carbP} L` : 'Non registrato';
+        document.getElementById('detail-carburante-arrivo').textContent = (carbA !== null) ? `${carbA} L` : 'Non registrato';
+        const consumoRow = document.getElementById('detail-carburante-consumo-row');
+        const consumoSpan = document.getElementById('detail-carburante-consumo');
+        if (carbP !== null && carbA !== null && carbP > carbA) {
+            consumoSpan.textContent = `${(carbP - carbA).toFixed(1)} L`;
+            consumoRow.style.display = '';
+        } else {
+            consumoRow.style.display = 'none';
         }
         
         // Show/hide action buttons based on ownership or admin role
@@ -1827,6 +1850,22 @@ try {
     if (showConsecutiveButton) {
         showConsecutiveButton.addEventListener('click', () => {
             renderConsecutiveFlights();
+        });
+    }
+
+    // --- Windy: cambio overlay (vento / raffiche / pioggia / nuvole) ---
+    const windyFrame = document.getElementById('windy-frame');
+    const windyButtons = document.querySelectorAll('.windy-btn');
+    if (windyFrame && windyButtons.length) {
+        const windySrc = (overlay) =>
+            `https://embed.windy.com/embed2.html?lat=42.0517865&lon=13.5574166&detailLat=42.0517865&detailLon=13.5574166&zoom=9&level=surface&overlay=${overlay}&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=default&radarRange=-1`;
+        windyButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const overlay = btn.dataset.overlay || 'wind';
+                windyFrame.src = windySrc(overlay);
+                windyButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
         });
     }
 
