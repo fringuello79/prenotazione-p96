@@ -53,10 +53,15 @@
                         <option value="">— Seleziona una data —</option>
                     </select>
                 </div>
-                <p>Alba: <span id="sunrise-time">Caricamento...</span> | Tramonto: <span id="sunset-time">Caricamento...</span></p>
-                <p>Meteo: <span id="weather-info">Caricamento...</span></p>
-                <p>Density Altitude stimata: <span id="density-altitude">Caricamento...</span> ft</p>
-                <p class="disclaimer">(dato indicativo – verificare sempre prima del volo)</p>
+                <div class="meteo-grid" id="day-meteo-grid">
+                    <div class="meteo-cell"><span class="meteo-icon">🌡️</span><div class="meteo-val" id="m-temp">—</div><div class="meteo-lbl">Temperatura</div></div>
+                    <div class="meteo-cell"><span class="meteo-icon">💨</span><div class="meteo-val" id="m-wind">—</div><div class="meteo-lbl">Vento</div></div>
+                    <div class="meteo-cell"><span class="meteo-icon">📊</span><div class="meteo-val" id="m-qnh">—</div><div class="meteo-lbl">QNH stimato</div></div>
+                    <div class="meteo-cell da-cell" id="da-cell"><span class="meteo-icon">🛫</span><div class="meteo-val" id="m-da">—</div><div class="meteo-lbl">Density Alt.</div></div>
+                    <div class="meteo-cell"><span class="meteo-icon">🌅</span><div class="meteo-val" id="m-sunrise">—</div><div class="meteo-lbl">Alba</div></div>
+                    <div class="meteo-cell"><span class="meteo-icon">🌇</span><div class="meteo-val" id="m-sunset">—</div><div class="meteo-lbl">Tramonto</div></div>
+                </div>
+                <p class="disclaimer">(dati indicativi – verificare sempre prima del volo)</p>
             </div>
 
             <!-- Stato Aeromobile: livello carburante ultima lettura + consumo medio -->
@@ -73,16 +78,11 @@
                 <p class="disclaimer">(livello all'ultimo atterraggio registrato – verificare sempre di persona)</p>
             </div>
 
-            <!-- ⭐ SEZIONE GRAFICO METEO E DA (AGGIUNTA) ⭐ -->
+            <!-- Grafico meteo unico: QNH + Temperatura con linea "ORA" -->
             <div class="meteo-chart-section">
-                <h3>Grafico Meteo Giornaliero</h3>
-                <div class="charts-container">
-                    <div class="chart-wrapper">
-                        <canvas id="meteoChartActual"></canvas>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="meteoChartForecast"></canvas>
-                    </div>
+                <div class="meteo-chart-title">Andamento QNH e Temperatura</div>
+                <div class="meteo-chart-wrap">
+                    <canvas id="meteoChartLiah"></canvas>
                 </div>
             </div>
 
