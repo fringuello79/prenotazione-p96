@@ -1,0 +1,33 @@
+{
+  "name": "Aeroclub dei Marsi — Prenotazione P96",
+  "short_name": "Aeroclub dei Marsi",
+  "description": "Prenotazione del Tecnam P96 Golf I-6195, contatore Hobbs, carburante e strumenti di volo dell'Aeroclub dei Marsi (LIAH, Celano).",
+  "lang": "it",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

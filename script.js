@@ -1981,6 +1981,10 @@ try {
     if (qbConfirm) {
         qbConfirm.addEventListener('click', async () => {
             if (!quickStart) return;
+            if (!navigator.onLine) {
+                admToast('Sei offline: la prenotazione ha bisogno della rete.');
+                return;
+            }
             const from = quickStart;
             const to = addMin(quickStart, quickSlots * 30);
             qbConfirm.disabled = true;

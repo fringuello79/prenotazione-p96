@@ -1562,3 +1562,25 @@ td.miss-arrivo, td.miss-partenza { color: #b45309; font-weight: 600; }
     .monthly-chart-wrap { height: 170px; }
     .field-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* =======================================================
+   rev9 — app installabile: avvisi rete e aggiornamento
+   ======================================================= */
+.app-banner {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 200;
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: calc(9px + env(safe-area-inset-top)) 14px 9px;
+    font-size: .84em; font-weight: 600; text-align: center;
+    box-shadow: 0 3px 14px rgba(15, 23, 42, .28);
+}
+.app-banner.is-open { display: flex; animation: admFadeUp .28s var(--ease) both; }
+#offline-banner { background: var(--secondary-gradient); color: #fff; }
+#update-banner { background: var(--gold-gradient); color: var(--night); }
+#update-banner button {
+    background: var(--night); color: #fff; border: 0; border-radius: 8px;
+    padding: 6px 14px; font-family: 'Outfit', sans-serif; font-weight: 700;
+    font-size: .95em; cursor: pointer; white-space: nowrap;
+}
+#update-banner button:disabled { opacity: .6; cursor: default; }
+/* se entrambi gli avvisi sono visibili, il secondo scende sotto il primo */
+#offline-banner.is-open ~ #update-banner.is-open { top: 40px; }

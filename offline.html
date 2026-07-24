@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<title>Sei offline · Aeroclub dei Marsi</title>
+<style>
+    body {
+        margin: 0; min-height: 100vh;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(160deg, #0c4a6e 0%, #0f172a 100%);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        color: #f8fafc; padding: 24px; text-align: center;
+    }
+    .box {
+        max-width: 380px; background: rgba(255,255,255,.06);
+        border: 1px solid rgba(201,169,96,.35); border-radius: 16px; padding: 28px 22px;
+    }
+    img { width: 84px; height: 84px; border-radius: 18px; margin-bottom: 14px; }
+    h1 { font-size: 1.15rem; margin: 0 0 8px; font-weight: 700; }
+    p { font-size: .92rem; line-height: 1.5; color: rgba(248,250,252,.8); margin: 0 0 18px; }
+    button {
+        background: linear-gradient(135deg, #c9a960 0%, #d4af37 100%);
+        color: #0f172a; border: 0; border-radius: 10px; padding: 12px 22px;
+        font-size: .95rem; font-weight: 700; cursor: pointer;
+    }
+    .hint { font-size: .78rem; color: rgba(248,250,252,.55); margin: 16px 0 0; }
+</style>
+</head>
+<body>
+    <div class="box">
+        <img src="icon-192.png" alt="Aeroclub dei Marsi">
+        <h1>Sei offline</h1>
+        <p>Questa parte dell'app non è ancora stata scaricata sul telefono.
+           Torna in copertura e riprova: le prenotazioni hanno sempre bisogno della rete.</p>
+        <button onclick="location.href='./index.html'">Riprova</button>
+        <p class="hint">Le pagine già visitate restano consultabili anche senza rete.</p>
+    </div>
+</body>
+</html>
