@@ -312,14 +312,10 @@ try {
         }
 
         let html = `<p class="mt-current">Contatore attuale: <strong>${current ? current.toFixed(1) : '—'}</strong> h</p>`;
-        if (cards.length === 0) {
-            html += `<p class="mt-todo">Scadenze non ancora impostate. Per attivarle, apri <code>script.js</code>,
-                     cerca <code>MANUTENZIONE</code> in cima al file e inserisci il valore del contatore
-                     dell'ultimo tagliando (e la data della revisione annuale).</p>`;
-        } else {
+        if (cards.length > 0) {
             html += `<div class="mt-grid">${cards.join('')}</div>`;
+            html += `<p class="disclaimer one-line">(promemoria indicativo – fa fede il libretto dell'aeromobile)</p>`;
         }
-        html += `<p class="disclaimer">(promemoria indicativo – fa fede sempre il libretto dell'aeromobile)</p>`;
         box.innerHTML = html;
     };
 
