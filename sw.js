@@ -7,7 +7,7 @@
    "È disponibile una nuova versione".
    ===================================================================== */
 
-const VERSION = 'rev9-2026-07-23';
+const VERSION = 'rev10-2026-07-24';
 
 const CORE_CACHE = 'core-' + VERSION;
 const RUNTIME_CACHE = 'runtime-' + VERSION;
