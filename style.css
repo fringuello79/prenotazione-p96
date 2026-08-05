@@ -1584,3 +1584,44 @@ td.miss-arrivo, td.miss-partenza { color: #b45309; font-weight: 600; }
 #update-banner button:disabled { opacity: .6; cursor: default; }
 /* se entrambi gli avvisi sono visibili, il secondo scende sotto il primo */
 #offline-banner.is-open ~ #update-banner.is-open { top: 40px; }
+
+/* =======================================================
+   rev11 — trasferte (aereo assente dal campo)
+   ======================================================= */
+.half-hour-slot.trasferta {
+    background: linear-gradient(135deg, #f6edee 0%, #efdfe1 100%);
+    border-left-color: var(--burgundy);
+    color: var(--burgundy);
+    cursor: pointer;
+}
+.half-hour-slot.trasferta .slot-content { display: flex; flex-direction: column; gap: 1px; font-weight: 600; }
+.tras-tag {
+    font-size: .62em; letter-spacing: .08em; text-transform: uppercase; font-weight: 700;
+    color: #fff; background: var(--secondary-gradient); border-radius: 5px;
+    padding: 1px 6px; align-self: flex-start;
+}
+.tras-nome { font-size: .92em; color: var(--night); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tras-rientro { font-size: .72em; color: var(--slate-light); font-variant-numeric: tabular-nums; }
+
+.tras-open-btn {
+    width: 100%; max-width: 300px; margin-top: 8px;
+    background: #fff; color: var(--burgundy);
+    border: 1.5px solid var(--burgundy); border-radius: 10px;
+    padding: 10px 16px; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: .88em;
+    cursor: pointer; transition: all .18s var(--ease);
+}
+.tras-open-btn:hover { background: var(--secondary-gradient); color: #fff; transform: translateY(-1px); }
+
+.tras-form { text-align: left; margin: 8px 0; }
+.tras-form label {
+    display: block; font-size: .78em; font-weight: 600; color: var(--slate);
+    margin: 10px 0 4px; text-transform: uppercase; letter-spacing: .04em;
+}
+.tras-row { display: flex; gap: 8px; }
+.tras-row input {
+    flex: 1; min-width: 0; padding: 9px 10px;
+    border: 1px solid var(--line); border-radius: 8px; font-size: .95em; font-family: inherit;
+}
+.tras-row input:focus { outline: none; border-color: var(--gold); }
+.tras-hint { font-size: .76em; color: var(--slate-light); margin: 10px 0 0; line-height: 1.4; }
+#close-trasferta-from-details { background: var(--gold-gradient); color: var(--night); }

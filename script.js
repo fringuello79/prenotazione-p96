@@ -113,6 +113,17 @@ try {
         const bookingDate = new Date(currentDisplayDate);
         bookingDate.setHours(0, 0, 0, 0);
 
+        // L'aereo non c'è: nessuna prenotazione dentro una trasferta
+        const _s = new Date(currentDisplayDate); const [_sh, _sm] = startTime.split(':').map(Number);
+        _s.setHours(_sh, _sm, 0, 0);
+        const _e = new Date(currentDisplayDate); const [_eh, _em] = endTime.split(':').map(Number);
+        _e.setHours(_eh, _em, 0, 0);
+        const _tras = trasfertaPerFascia(_s, _e);
+        if (_tras) {
+            bookingErrorMessage.textContent = "In quelle ore l'aereo è in trasferta e non è disponibile.";
+            return;
+        }
+
         bookingErrorMessage.textContent = '';
 
         // Verifica se si sta cercando di prenotare in una data passata
@@ -503,8 +514,85 @@ try {
         refreshQuickBar();
     };
 
+    // ===============================================================
+    //  TRASFERTE — l'aereo è assente dal campo per una finestra lunga
+    //  (parte, resta via, rientra). Una sola prenotazione continua,
+    //  anche a cavallo di più giorni. Chi rientra prima può chiuderla.
+    // ===============================================================
+    let trasferteAttive = [];
+    let trasferteUnsub = null;
+    let ultimeBookingsGiorno = [];
+
+    // Finestra [inizio, fine] di una trasferta come date complete
+    const finestraTrasferta = (t) => {
+        const inizio = bookingDateToDate(t.data);
+        const fine = bookingDateToDate(t.data_fine || t.data);
+        if (!inizio || !fine) return null;
+        const [ih, im] = (t.ora_inizio || '00:00').split(':').map(Number);
+        const [fh, fm] = (t.ora_fine || '23:59').split(':').map(Number);
+        inizio.setHours(ih, im, 0, 0);
+        fine.setHours(fh, fm, 0, 0);
+        return { inizio, fine };
+    };
+
+    // Trasferta che occupa una certa fascia oraria (o null)
+    const trasfertaPerFascia = (slotStart, slotEnd) => {
+        for (const t of trasferteAttive) {
+            const w = finestraTrasferta(t);
+            if (w && w.inizio < slotEnd && w.fine > slotStart) return t;
+        }
+        return null;
+    };
+
+    // Ascolta tutte le trasferte (sono poche): servono anche nei giorni intermedi
+    const listenToTrasferte = () => {
+        if (trasferteUnsub) trasferteUnsub();
+        trasferteUnsub = db.collection('bookings')
+            .where('tipo', '==', 'trasferta')
+            .onSnapshot(async (snapshot) => {
+                const lista = [];
+                for (const doc of snapshot.docs) {
+                    const t = { id: doc.id, ...doc.data() };
+                    if (t.socio_id) {
+                        try {
+                            const u = await db.collection('users').doc(t.socio_id).get();
+                            if (u.exists) {
+                                const d = u.data();
+                                t.socio_nome = (d.nome && d.cognome) ? `${d.nome} ${d.cognome}` : d.email;
+                            }
+                        } catch (e) { console.warn('nome socio trasferta:', e); }
+                    }
+                    lista.push(t);
+                }
+                trasferteAttive = lista;
+                // ridisegna la giornata mostrata, così le trasferte compaiono subito
+                renderHourlySchedule(ultimeBookingsGiorno);
+            }, (err) => console.warn('Trasferte non caricate:', err));
+    };
+
+    // Chiude in anticipo una trasferta: l'aereo è rientrato, le ore dopo tornano libere
+    const chiudiTrasferta = async (bookingId) => {
+        const ora = new Date();
+        // arrotonda alla mezz'ora successiva, così la fascia in corso resta occupata
+        ora.setMinutes(ora.getMinutes() > 30 ? 60 : 30, 0, 0);
+        const giorno = new Date(ora); giorno.setHours(0, 0, 0, 0);
+        const oraFine = `${String(ora.getHours()).padStart(2, '0')}:${String(ora.getMinutes()).padStart(2, '0')}`;
+        try {
+            await db.collection('bookings').doc(bookingId).update({
+                data_fine: firebase.firestore.Timestamp.fromDate(giorno),
+                ora_fine: oraFine
+            });
+            admToast(`Trasferta chiusa: aereo rientrato alle ${oraFine}`);
+        } catch (e) {
+            console.error('Chiusura trasferta:', e);
+            admToast('Non è stato possibile chiudere la trasferta.');
+        }
+    };
+
     // --- Generazione Tabella Oraria ---
     const renderHourlySchedule = (allBookings) => {
+        allBookings = allBookings || [];
+        ultimeBookingsGiorno = allBookings;
         hourlyScheduleDiv.innerHTML = '';
         clearQuickBooking();
 
@@ -568,6 +656,27 @@ try {
                 if (slotStart < sunrise || slotEnd > sunset) {
                     slot.classList.add('night');
                     slot.innerHTML = `<div class="slot-content">Buio</div>`;
+                    hourBlock.appendChild(slot);
+                    return;
+                }
+
+                // --- Trasferta: l'aereo è fisicamente altrove ---
+                const tras = trasfertaPerFascia(slotStart, slotEnd);
+                if (tras) {
+                    const w = finestraTrasferta(tras);
+                    const nome = tras.socio_nome || 'Socio';
+                    const stessoGiorno = w.fine.toDateString() === slotStart.toDateString();
+                    const rientro = stessoGiorno
+                        ? `rientro ${String(w.fine.getHours()).padStart(2, '0')}:${String(w.fine.getMinutes()).padStart(2, '0')}`
+                        : `rientro ${w.fine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ${String(w.fine.getHours()).padStart(2, '0')}:${String(w.fine.getMinutes()).padStart(2, '0')}`;
+                    slot.classList.add('trasferta');
+                    slot.innerHTML = `<div class="slot-content"><span class="tras-tag">✈ In trasferta</span>` +
+                        `<span class="tras-nome">${nome}</span><span class="tras-rientro">${rientro}</span></div>`;
+                    slot.style.cursor = 'pointer';
+                    slot.addEventListener('click', () => {
+                        const isOwner = window.currentUser && tras.socio_id === window.currentUser.uid;
+                        showBookingDetails(tras, isOwner);
+                    });
                     hourBlock.appendChild(slot);
                     return;
                 }
@@ -699,8 +808,15 @@ try {
     };
 
     // Disegna la card "Stato Aeromobile" con il livello carburante e il consumo medio.
+    // Forbice di consumo plausibile per il Rotax 912 del P96 (L/h).
+    // Il P96 ha 70 L e circa 4h30 di autonomia: ~15-17 L/h reali.
+    // Le letture a vista del serbatoio sono imprecise: fuori da questa forbice si scartano.
+    const CONSUMO_MIN = 8;
+    const CONSUMO_MAX = 28;
+    const CONSUMO_MIN_VOLI = 3;   // sotto questo numero di letture valide non mostriamo la stima
+
     const FUEL_TANK_LITERS = 70; // pieno I-6195 (35 + 35 per semiala)
-    const renderAircraftStatus = (lastFuel, lastUse, avgConsumption, fuelFlightCount) => {
+    const renderAircraftStatus = (lastFuel, lastUse, avgConsumption, fuelFlightCount, scartati) => {
         const card = document.getElementById('aircraft-status');
         if (!card) return;
 
@@ -760,7 +876,7 @@ try {
         const cons = document.getElementById('fuel-consumption');
         if (cons) {
             if (hasConsumption) {
-                let t = `Consumo medio stimato: ${avgConsumption.toFixed(1)} L/h (su ${fuelFlightCount} vol${fuelFlightCount === 1 ? 'o' : 'i'} con dati completi)`;
+                let t = `Consumo stimato: ${avgConsumption.toFixed(1)} L/h (mediana su ${fuelFlightCount} letture valide)`;
                 if (hasFuel) {
                     const autonomia = lastFuel / avgConsumption;
                     if (isFinite(autonomia) && autonomia > 0) {
@@ -769,10 +885,15 @@ try {
                         t += ` · autonomia indicativa ~${h}h${String(m).padStart(2, '0')}`;
                     }
                 }
+                if (scartati > 0) t += ` · ${scartati} lettur${scartati === 1 ? 'a scartata' : 'e scartate'} fuori scala`;
                 cons.textContent = t;
                 cons.style.display = '';
             } else {
-                cons.style.display = 'none';
+                // Poche letture attendibili: meglio non mostrare un numero sbagliato
+                cons.textContent = scartati > 0
+                    ? `Consumo non stimabile: le letture del carburante finora sono incoerenti (${scartati} scartate).`
+                    : 'Consumo non ancora stimabile: servono almeno 3 voli con carburante segnato a partenza e arrivo.';
+                cons.style.display = '';
             }
         }
 
@@ -804,7 +925,8 @@ try {
 
             // Carburante: ultima lettura (per Hobbs più alto) + consumo medio
             let lastUse = null; // { hobbsA, carbA, dateObj, socio }
-            let fuelConsumedTotal = 0, fuelHoursTotal = 0, fuelFlightCount = 0;
+            const consumiValidi = [];   // litri/ora dei singoli voli, gia' filtrati
+            let consumiScartati = 0;
 
             const nameOf = (id) => userNames[id] || `${id} (utente cancellato)`;
 
@@ -845,14 +967,22 @@ try {
                         };
                     }
                 }
-                // Consumo: solo voli con carburante di partenza e arrivo e durata Hobbs valida
+                // Consumo: solo voli con carburante di partenza e arrivo e durata Hobbs valida.
+                // Le letture del carburante sono a vista, quindi molto imprecise: teniamo solo
+                // i valori dentro una forbice plausibile per il Rotax 912 del P96 (8-28 L/h).
                 if (flight && carbP !== null && carbA !== null && carbP > carbA) {
                     const hours = (parseFloat(haRaw) - parseFloat(hpRaw));
-                    if (hours > 0) {
-                        fuelConsumedTotal += (carbP - carbA);
-                        fuelHoursTotal += hours;
-                        fuelFlightCount++;
+                    if (hours > 0.15) { // sotto i 9 minuti la lettura non è significativa
+                        const lh = (carbP - carbA) / hours;
+                        if (lh >= CONSUMO_MIN && lh <= CONSUMO_MAX) {
+                            consumiValidi.push(lh);
+                        } else {
+                            consumiScartati++;
+                        }
                     }
+                } else if (flight && carbP !== null && carbA !== null && carbA > carbP) {
+                    // Arrivo maggiore della partenza: c'è stato un rifornimento, non è consumo
+                    consumiScartati++;
                 }
 
                 if (flight) {
@@ -959,8 +1089,15 @@ try {
 
             // Stato aeromobile: carburante ultima lettura + consumo medio
             const lastFuel = (lastUse && lastUse.carbA !== null && lastUse.carbA !== undefined) ? lastUse.carbA : null;
-            const avgConsumption = fuelHoursTotal > 0 ? (fuelConsumedTotal / fuelHoursTotal) : null;
-            renderAircraftStatus(lastFuel, lastUse, avgConsumption, fuelFlightCount);
+            // Mediana: un singolo dato sbagliato non sposta il risultato, come farebbe la media.
+            // Serve un minimo di letture valide, altrimenti non mostriamo nulla.
+            let avgConsumption = null;
+            if (consumiValidi.length >= CONSUMO_MIN_VOLI) {
+                const v = consumiValidi.slice().sort((a, b) => a - b);
+                const m = Math.floor(v.length / 2);
+                avgConsumption = v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+            }
+            renderAircraftStatus(lastFuel, lastUse, avgConsumption, consumiValidi.length, consumiScartati);
 
             const rows = Object.entries(totalsBySocio)
                 .map(([id, data]) => ({
@@ -1192,12 +1329,24 @@ try {
         
         // Show/hide action buttons based on ownership or admin role
         const actionButtons = document.getElementById('booking-action-buttons');
+        const closeTras = document.getElementById('close-trasferta-from-details');
         if (isOwner || window.currentUserRole === 'admin') {
             actionButtons.style.display = 'flex';
             actionButtons.dataset.bookingId = booking.id;
             actionButtons.dataset.bookingData = JSON.stringify(booking);
+            // "Aereo rientrato" solo per le trasferte ancora in corso
+            if (closeTras) {
+                const w = booking.tipo === 'trasferta' ? finestraTrasferta(booking) : null;
+                if (w && w.fine > new Date()) {
+                    closeTras.style.display = '';
+                    closeTras.dataset.bookingId = booking.id;
+                } else {
+                    closeTras.style.display = 'none';
+                }
+            }
         } else {
             actionButtons.style.display = 'none';
+            if (closeTras) closeTras.style.display = 'none';
         }
         
         dialog.style.display = 'flex';
@@ -1998,6 +2147,114 @@ try {
         });
     }
 
+    // --- Trasferta: apertura modulo, controlli e salvataggio ---
+    const trasDialog = document.getElementById('trasferta-dialog');
+    const openTrasBtn = document.getElementById('open-trasferta-button');
+    if (openTrasBtn && trasDialog) {
+        openTrasBtn.addEventListener('click', () => {
+            if (!window.currentUser) { admToast('Devi accedere per prenotare.'); return; }
+            const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            document.getElementById('tras-data-inizio').value = iso(currentDisplayDate);
+            document.getElementById('tras-data-fine').value = iso(currentDisplayDate);
+            document.getElementById('tras-error').textContent = '';
+            trasDialog.style.display = 'flex';
+        });
+    }
+    const trasCancel = document.getElementById('tras-cancel');
+    if (trasCancel) trasCancel.addEventListener('click', () => { trasDialog.style.display = 'none'; });
+
+    const trasSave = document.getElementById('tras-save');
+    if (trasSave) {
+        trasSave.addEventListener('click', async () => {
+            const err = document.getElementById('tras-error');
+            err.textContent = '';
+            if (!window.currentUser) { err.textContent = 'Devi accedere per prenotare.'; return; }
+
+            const dI = document.getElementById('tras-data-inizio').value;
+            const oI = document.getElementById('tras-ora-inizio').value;
+            const dF = document.getElementById('tras-data-fine').value;
+            const oF = document.getElementById('tras-ora-fine').value;
+            if (!dI || !oI || !dF || !oF) { err.textContent = 'Compila giorno e ora di partenza e di rientro.'; return; }
+
+            const inizio = new Date(`${dI}T${oI}:00`);
+            const fine = new Date(`${dF}T${oF}:00`);
+            if (!(fine > inizio)) { err.textContent = 'Il rientro deve essere successivo alla partenza.'; return; }
+            const giorni = (fine - inizio) / 86400000;
+            if (giorni > 14) { err.textContent = 'La trasferta non può superare i 14 giorni.'; return; }
+
+            const gInizio = new Date(inizio); gInizio.setHours(0, 0, 0, 0);
+            const gFine = new Date(fine); gFine.setHours(0, 0, 0, 0);
+
+            trasSave.disabled = true;
+            try {
+                // 1) niente sovrapposizioni con altre trasferte
+                for (const t of trasferteAttive) {
+                    const w = finestraTrasferta(t);
+                    if (w && w.inizio < fine && w.fine > inizio) {
+                        err.textContent = 'In quel periodo c\'è già una trasferta.';
+                        return;
+                    }
+                }
+                // 2) niente sovrapposizioni con prenotazioni normali nel periodo
+                const snap = await db.collection('bookings')
+                    .where('data', '>=', firebase.firestore.Timestamp.fromDate(gInizio))
+                    .where('data', '<=', firebase.firestore.Timestamp.fromDate(gFine))
+                    .get();
+                for (const doc of snap.docs) {
+                    const b = doc.data();
+                    if (b.tipo === 'trasferta') continue;
+                    const g = bookingDateToDate(b.data);
+                    if (!g || !b.ora_inizio || !b.ora_fine) continue;
+                    const bs = new Date(g); const [bh, bm] = b.ora_inizio.split(':').map(Number); bs.setHours(bh, bm, 0, 0);
+                    const be = new Date(g); const [eh, em] = b.ora_fine.split(':').map(Number); be.setHours(eh, em, 0, 0);
+                    if (bs < fine && be > inizio) {
+                        err.textContent = `C'è già una prenotazione il ${g.toLocaleDateString('it-IT')} alle ${b.ora_inizio}.`;
+                        return;
+                    }
+                }
+
+                await db.collection('bookings').add({
+                    aeromobile_id: 'Tecnam P96',
+                    socio_id: window.currentUser.uid,
+                    tipo: 'trasferta',
+                    data: firebase.firestore.Timestamp.fromDate(gInizio),
+                    ora_inizio: oI,
+                    data_fine: firebase.firestore.Timestamp.fromDate(gFine),
+                    ora_fine: oF,
+                    hobbs_partenza: null,
+                    hobbs_arrivo: null,
+                    stato: 'prenotato',
+                    timestamp_creazione: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                trasDialog.style.display = 'none';
+                admToast('Trasferta registrata: l\'aereo risulta assente in quelle ore.');
+            } catch (e) {
+                console.error('Trasferta:', e);
+                err.textContent = 'Errore nel salvataggio: ' + e.message;
+            } finally {
+                trasSave.disabled = false;
+            }
+        });
+    }
+
+    // --- Chiusura anticipata della trasferta ---
+    const closeTrasBtn = document.getElementById('close-trasferta-from-details');
+    if (closeTrasBtn) {
+        closeTrasBtn.addEventListener('click', async () => {
+            const id = closeTrasBtn.dataset.bookingId;
+            if (!id) return;
+            closeTrasBtn.disabled = true;
+            try {
+                await chiudiTrasferta(id);
+                const dlg = document.getElementById('booking-details-dialog');
+                if (dlg) dlg.style.display = 'none';
+            } finally {
+                closeTrasBtn.disabled = false;
+            }
+        });
+    }
+
     // --- Apri il registro consecutivo del contatore ---
     const showConsecutiveButton = document.getElementById('show-consecutive-button');
     if (showConsecutiveButton) {
@@ -2094,6 +2351,7 @@ try {
             }
             
             listenToBookings();
+            listenToTrasferte();
             loadWeatherData();
             renderMemberTotals();
 

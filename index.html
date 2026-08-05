@@ -17,7 +17,7 @@
 </head>
 <body>
     <div id="app">
-        <div id="version-info">rev10 - 24/07/2026</div>
+        <div id="version-info">rev11 - 24/07/2026</div>
         <img src="logo.jpg" alt="Logo Aeroclub dei Marsi" id="aeroclub-logo">
         <h1>Benvenuto all'Aeroclub dei Marsi</h1>
         <p id="loading-message">Caricamento applicazione...</p>
@@ -108,6 +108,7 @@
                     <input type="time" id="start-time" value="09:00" required>
                     <input type="time" id="end-time" value="10:00" required>
                     <button id="add-booking-button">Prenota</button>
+                    <button id="open-trasferta-button" class="tras-open-btn">✈ Prenota trasferta (aereo assente)</button>
                     <p id="booking-error-message" style="color: red;"></p>
                 </div>
 
@@ -240,7 +241,35 @@
                 </div>
                 <div class="modal-buttons" id="booking-action-buttons" style="display: none;">
                     <button id="edit-hobbs-from-details" class="primary-button">✏️ Modifica Hobbs</button>
+                    <button id="close-trasferta-from-details" class="primary-button" style="display:none;">🛬 Aereo rientrato</button>
                     <button id="delete-from-details" class="danger-button">🗑️ Elimina Prenotazione</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trasferta Dialog -->
+        <div id="trasferta-dialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>✈ Prenota una trasferta</h3>
+                <p class="totals-subtitle">L'aereo resta fuori campo per tutta la finestra indicata: le ore di mezzo restano bloccate.</p>
+                <div class="tras-form">
+                    <label for="tras-data-inizio">Partenza — giorno e ora</label>
+                    <div class="tras-row">
+                        <input type="date" id="tras-data-inizio">
+                        <input type="time" id="tras-ora-inizio" step="1800" value="09:00">
+                    </div>
+                    <label for="tras-data-fine">Rientro previsto — giorno e ora</label>
+                    <div class="tras-row">
+                        <input type="date" id="tras-data-fine">
+                        <input type="time" id="tras-ora-fine" step="1800" value="18:00">
+                    </div>
+                    <p class="tras-hint">Se rientri prima, apri la prenotazione e tocca “Aereo rientrato”: le ore successive tornano libere.</p>
+                    <p id="tras-error" class="error-message"></p>
+                </div>
+                <div class="modal-buttons">
+                    <button id="tras-cancel" class="secondary-button">Annulla</button>
+                    <button id="tras-save" class="primary-button">Conferma trasferta</button>
                 </div>
             </div>
         </div>
