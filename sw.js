@@ -7,7 +7,7 @@
    "È disponibile una nuova versione".
    ===================================================================== */
 
-const VERSION = 'rev13-2026-08-13';
+const VERSION = 'rev14-2026-08-13';
 
 const CORE_CACHE = 'core-' + VERSION;
 const RUNTIME_CACHE = 'runtime-' + VERSION;
@@ -49,6 +49,9 @@ const NEVER_CACHE = [
 
 // ---------- Installazione ----------
 self.addEventListener('install', (event) => {
+    // Prende subito il posto della versione precedente: evita che i soci
+    // restino con codice vecchio in copia locale dopo un aggiornamento.
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CORE_CACHE)
             .then(cache => cache.addAll(CORE_ASSETS))
@@ -98,7 +101,23 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // File del sito e CDN: prima la copia locale (veloce), aggiornata in sottofondo
+    // Codice del sito (js/css): PRIMA la rete, così un aggiornamento è subito attivo.
+    // La copia locale resta solo come riserva per l'uso senza campo.
+    if (sameOrigin && /\.(js|css)$/i.test(url.pathname)) {
+        event.respondWith(
+            fetch(req).then(res => {
+                if (res && res.status === 200) {
+                    const copy = res.clone();
+                    caches.open(CORE_CACHE).then(c => c.put(req, copy));
+                }
+                return res;
+            }).catch(() => caches.match(req))
+        );
+        return;
+    }
+
+    // Immagini, PDF, font e librerie esterne: prima la copia locale (veloce),
+    // aggiornata in sottofondo. Cambiano di rado.
     if (sameOrigin || CDN_HOSTS.includes(url.hostname)) {
         event.respondWith(
             caches.match(req).then(hit => {
