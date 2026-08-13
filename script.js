@@ -240,7 +240,10 @@ try {
             return;
         }
 
-        if (currentDisplayDate.toDateString() === new Date().toDateString() && newBookingEnd < new Date()) {
+        // L'amministratore può registrare anche voli già avvenuti (prenotazioni dimenticate)
+        if (currentDisplayDate.toDateString() === new Date().toDateString()
+            && newBookingEnd < new Date()
+            && window.currentUserRole !== 'admin') {
             bookingErrorMessage.textContent = "Non è possibile prenotare orari già passati.";
             return;
         }
