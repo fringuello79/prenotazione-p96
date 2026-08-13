@@ -101,6 +101,79 @@ try {
         loadWeatherData();
     });
 
+    // ===============================================================
+    //  MODALITÀ AMMINISTRATORE
+    //  Permette di registrare una prenotazione per conto di un socio
+    //  (es. chi ha volato ma ha dimenticato di prenotare) e di
+    //  riassegnare una prenotazione esistente a un altro socio.
+    //  Attiva solo per chi ha ruolo 'admin'.
+    // ===============================================================
+    let elencoSoci = [];   // { id, nome }
+
+    const isAdmin = () => window.currentUserRole === 'admin';
+
+    const caricaElencoSoci = async () => {
+        try {
+            const snap = await db.collection('users').get();
+            const lista = [];
+            snap.forEach(doc => {
+                const u = doc.data();
+                const nome = (u.nome && u.cognome) ? `${u.nome} ${u.cognome}` : (u.email || doc.id);
+                lista.push({ id: doc.id, nome });
+            });
+            lista.sort((a, b) => a.nome.localeCompare(b.nome, 'it'));
+            elencoSoci = lista;
+            popolaTendineSoci();
+        } catch (e) {
+            console.error('Elenco soci non caricato:', e);
+        }
+    };
+
+    const popolaTendineSoci = () => {
+        const sel = document.getElementById('admin-socio-select');
+        if (sel) {
+            const scelto = sel.value;
+            sel.innerHTML = '<option value="">— Me stesso —</option>' +
+                elencoSoci.filter(s => !window.currentUser || s.id !== window.currentUser.uid)
+                    .map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+            if (scelto) sel.value = scelto;
+        }
+        const re = document.getElementById('admin-reassign-select');
+        if (re) re.innerHTML = elencoSoci.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+    };
+
+    // Socio per cui si sta prenotando: null = se stessi
+    const socioSelezionato = () => {
+        if (!isAdmin()) return null;
+        const sel = document.getElementById('admin-socio-select');
+        const v = sel ? sel.value : '';
+        return v || null;
+    };
+    const nomeSocio = (id) => {
+        const s = elencoSoci.find(x => x.id === id);
+        return s ? s.nome : 'socio';
+    };
+
+    const aggiornaIndicatorePerConto = () => {
+        const box = document.getElementById('qb-onbehalf');
+        if (!box) return;
+        const id = socioSelezionato();
+        if (id) {
+            box.textContent = `per conto di ${nomeSocio(id)}`;
+            box.style.display = '';
+        } else {
+            box.style.display = 'none';
+        }
+    };
+
+    // Mostra/nasconde i comandi riservati all'amministratore
+    const aggiornaVistaAdmin = () => {
+        const panel = document.getElementById('admin-panel');
+        if (panel) panel.style.display = isAdmin() ? '' : 'none';
+        if (isAdmin() && elencoSoci.length === 0) caricaElencoSoci();
+        aggiornaIndicatorePerConto();
+    };
+
     // --- Funzione per aggiungere prenotazione ---
     const addBookingLogic = async (start, end) => {
         if (!window.currentUser) {
@@ -208,9 +281,12 @@ try {
         }
 
         try {
+            const perConto = socioSelezionato();
             await db.collection('bookings').add({
                 aeromobile_id: 'Tecnam P96',
-                socio_id: window.currentUser.uid,
+                socio_id: perConto || window.currentUser.uid,
+                // traccia di chi ha inserito la prenotazione al posto del socio
+                inserita_da: perConto ? window.currentUser.uid : null,
                 data: firebase.firestore.Timestamp.fromDate(bookingDate),
                 ora_inizio: startTime,
                 ora_fine: endTime,
@@ -221,6 +297,7 @@ try {
             });
 
             bookingErrorMessage.textContent = "";
+            if (perConto) admToast(`Prenotazione registrata per ${nomeSocio(perConto)}`);
             if (start === startTimeInput.value && end === endTimeInput.value) {
                 startTimeInput.value = "09:00";
                 endTimeInput.value = "10:00";
@@ -1365,7 +1442,24 @@ try {
         if (carbPInput) carbPInput.value = (booking.carburante_partenza !== undefined && booking.carburante_partenza !== null) ? booking.carburante_partenza : '';
         if (carbAInput) carbAInput.value = (booking.carburante_arrivo !== undefined && booking.carburante_arrivo !== null) ? booking.carburante_arrivo : '';
         document.getElementById('hobbs-error-message').textContent = '';
-        
+
+        // Riassegnazione del socio: solo per l'amministratore
+        const reBox = document.getElementById('admin-reassign');
+        const reSel = document.getElementById('admin-reassign-select');
+        if (reBox && reSel) {
+            if (isAdmin()) {
+                if (elencoSoci.length === 0) {
+                    caricaElencoSoci().then(() => { reSel.value = booking.socio_id || ''; });
+                } else {
+                    popolaTendineSoci();
+                    reSel.value = booking.socio_id || '';
+                }
+                reBox.style.display = '';
+            } else {
+                reBox.style.display = 'none';
+            }
+        }
+
         // Clear photo previews
         document.getElementById('hobbs-partenza-photo-preview').innerHTML = '';
         document.getElementById('hobbs-arrivo-photo-preview').innerHTML = '';
@@ -1682,6 +1776,12 @@ try {
                 carburante_partenza: (carbP !== '' && carbP !== null && carbP !== undefined) ? parseFloat(carbP) : null,
                 carburante_arrivo: (carbA !== '' && carbA !== null && carbA !== undefined) ? parseFloat(carbA) : null
             };
+
+            // Riassegnazione a un altro socio: solo amministratore
+            const reSel = document.getElementById('admin-reassign-select');
+            if (isAdmin() && reSel && reSel.value) {
+                updateData.socio_id = reSel.value;
+            }
             
             // Update the current booking
             await db.collection('bookings').doc(bookingId).update(updateData);
@@ -2147,6 +2247,16 @@ try {
         });
     }
 
+    // --- Selettore socio (amministratore) ---
+    const adminSelect = document.getElementById('admin-socio-select');
+    if (adminSelect) {
+        adminSelect.addEventListener('change', () => {
+            aggiornaIndicatorePerConto();
+            const id = socioSelezionato();
+            if (id) admToast(`Stai prenotando per ${nomeSocio(id)}`);
+        });
+    }
+
     // --- Trasferta: apertura modulo, controlli e salvataggio ---
     const trasDialog = document.getElementById('trasferta-dialog');
     const openTrasBtn = document.getElementById('open-trasferta-button');
@@ -2213,9 +2323,11 @@ try {
                     }
                 }
 
+                const perContoT = socioSelezionato();
                 await db.collection('bookings').add({
                     aeromobile_id: 'Tecnam P96',
-                    socio_id: window.currentUser.uid,
+                    socio_id: perContoT || window.currentUser.uid,
+                    inserita_da: perContoT ? window.currentUser.uid : null,
                     tipo: 'trasferta',
                     data: firebase.firestore.Timestamp.fromDate(gInizio),
                     ora_inizio: oI,
@@ -2350,6 +2462,7 @@ try {
                 }
             }
             
+            aggiornaVistaAdmin();
             listenToBookings();
             listenToTrasferte();
             loadWeatherData();
@@ -2358,6 +2471,8 @@ try {
         } else {
             window.currentUser = null; 
             window.currentUserRole = null; 
+            elencoSoci = [];
+            aggiornaVistaAdmin();
             authContainer.style.display = 'block';
             appContent.style.display = 'none';
             userDisplayNameSpan.textContent = '';

@@ -1625,3 +1625,46 @@ td.miss-arrivo, td.miss-partenza { color: #b45309; font-weight: 600; }
 .tras-row input:focus { outline: none; border-color: var(--gold); }
 .tras-hint { font-size: .76em; color: var(--slate-light); margin: 10px 0 0; line-height: 1.4; }
 #close-trasferta-from-details { background: var(--gold-gradient); color: var(--night); }
+
+/* =======================================================
+   rev12 — modalità amministratore
+   ======================================================= */
+.admin-panel {
+    width: 100%; max-width: 420px; margin: 10px auto;
+    padding: 12px 14px; text-align: left;
+    background: linear-gradient(135deg, #fdf6e3 0%, #f7ecd2 100%);
+    border: 1px solid var(--gold); border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(201, 169, 96, .22);
+    box-sizing: border-box;
+}
+.admin-head { margin-bottom: 8px; }
+.admin-badge {
+    display: inline-block; font-size: .62em; letter-spacing: .12em; text-transform: uppercase;
+    font-weight: 700; color: #fff; background: var(--secondary-gradient);
+    border-radius: 5px; padding: 3px 9px;
+}
+.admin-panel label {
+    display: block; font-size: .74em; font-weight: 700; color: var(--slate);
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px;
+}
+.admin-panel select, .admin-reassign select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: #fff; font-size: .95em; font-family: inherit;
+    color: var(--night); box-sizing: border-box;
+}
+.admin-panel select:focus, .admin-reassign select:focus { outline: none; border-color: var(--gold-warm); }
+.admin-hint { font-size: .74em; color: var(--slate-light); margin: 7px 0 0; line-height: 1.4; }
+
+.admin-reassign {
+    margin: 10px 0; padding: 10px 12px;
+    background: #fdf6e3; border: 1px dashed var(--gold); border-radius: 8px;
+}
+.admin-reassign label {
+    display: block; font-size: .74em; font-weight: 700; color: var(--slate);
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px;
+}
+.qb-onbehalf {
+    font-size: .72em; color: var(--night); background: var(--gold-gradient);
+    border-radius: 5px; padding: 2px 8px; margin-top: 3px;
+    display: inline-block; font-weight: 700;
+}

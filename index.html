@@ -17,7 +17,7 @@
 </head>
 <body>
     <div id="app">
-        <div id="version-info">rev11 - 24/07/2026</div>
+        <div id="version-info">rev12 - 24/07/2026</div>
         <img src="logo.jpg" alt="Logo Aeroclub dei Marsi" id="aeroclub-logo">
         <h1>Benvenuto all'Aeroclub dei Marsi</h1>
         <p id="loading-message">Caricamento applicazione...</p>
@@ -101,6 +101,14 @@
                 <h3>Tabella Prenotazioni</h3>
                 <div id="hourly-schedule">
                     <p>Caricamento tabella oraria...</p>
+                </div>
+
+                <!-- Pannello amministratore: prenotare per conto di un socio -->
+                <div id="admin-panel" class="admin-panel" style="display:none;">
+                    <div class="admin-head"><span class="admin-badge">Amministratore</span></div>
+                    <label for="admin-socio-select">Prenota per conto di</label>
+                    <select id="admin-socio-select"><option value="">— Me stesso —</option></select>
+                    <p class="admin-hint">Scegli un socio per registrare al posto suo una prenotazione dimenticata, anche su giorni passati. Poi apri la prenotazione e inserisci contatore, carburante e foto.</p>
                 </div>
 
                 <h4>Prenotazione oraria personalizzata</h4>
@@ -296,6 +304,11 @@
                         <input type="file" id="hobbs-arrivo-photo" accept="image/*">
                         <div id="hobbs-arrivo-photo-preview" class="photo-preview"></div>
 
+                        <div id="admin-reassign" class="admin-reassign" style="display:none;">
+                            <label for="admin-reassign-select">👤 Socio intestatario (solo amministratore)</label>
+                            <select id="admin-reassign-select"></select>
+                        </div>
+
                         <div class="fuel-fields">
                             <label for="carburante-partenza-input">⛽ Carburante Partenza (litri) — facoltativo:</label>
                             <input type="number" id="carburante-partenza-input" step="0.5" min="0" max="70" placeholder="es. 60">
@@ -360,6 +373,7 @@
                 <div>
                     <div class="qb-label">Stai prenotando</div>
                     <div class="qb-range" id="qb-range">—</div>
+                    <div class="qb-onbehalf" id="qb-onbehalf" style="display:none;"></div>
                 </div>
                 <div class="qb-actions">
                     <button type="button" class="btn-ghost" id="qb-cancel">Annulla</button>
