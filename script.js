@@ -1513,7 +1513,7 @@ try {
     // Comprime un'immagine lato client e ne corregge l'orientamento (EXIF).
     // Riduce il lato massimo a maxDim px ed esporta in JPEG. Se qualcosa va storto,
     // restituisce il file originale senza bloccare l'upload.
-    const compressImage = async (file, maxDim = 1600, quality = 0.82) => {
+    const compressImage = async (file, maxDim = 1280, quality = 0.72) => {
         if (!file || !file.type || !file.type.startsWith('image/')) return file;
 
         const drawToBlob = (source, width, height) => new Promise((resolve) => {
@@ -1577,11 +1577,21 @@ try {
     };
 
     // Helper function to upload photo to ImgBB
-    const uploadPhoto = async (file, bookingId, photoType) => {
+    // Invio con scadenza: senza questo, con segnale debole la richiesta
+    // resta appesa all'infinito e il salvataggio non termina mai.
+    const fetchConTimeout = (url, opzioni, ms) => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), ms);
+        return fetch(url, { ...opzioni, signal: ctrl.signal })
+            .finally(() => clearTimeout(timer));
+    };
+
+    const uploadPhoto = async (file, bookingId, photoType, onProgress) => {
         if (!file) return null;
-        
+
         try {
             // Comprimi e correggi orientamento prima dell'upload
+            if (onProgress) onProgress('Preparo la foto…');
             file = await compressImage(file);
 
             // Convert file to base64
@@ -1603,24 +1613,28 @@ try {
             formData.append('image', base64Image);
             formData.append('name', `${bookingId}_${photoType}_${Date.now()}`);
             
-            // Upload to ImgBB
-            const response = await fetch('https://api.imgbb.com/1/upload', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                throw new Error('Errore upload ImgBB');
+            // Invio con scadenza e fino a 3 tentativi: le reti al campo sono ballerine
+            let ultimoErrore = null;
+            for (let tentativo = 1; tentativo <= 3; tentativo++) {
+                try {
+                    if (onProgress) onProgress(tentativo === 1 ? 'Invio la foto…' : `Riprovo l'invio (${tentativo}/3)…`);
+                    const response = await fetchConTimeout(
+                        'https://api.imgbb.com/1/upload',
+                        { method: 'POST', body: formData },
+                        45000
+                    );
+                    if (!response.ok) throw new Error('ImgBB ha risposto ' + response.status);
+                    const data = await response.json();
+                    if (!data || !data.success) throw new Error('Invio non riuscito');
+                    return data.data.url;
+                } catch (e) {
+                    ultimoErrore = e;
+                    const scaduto = (e && e.name === 'AbortError');
+                    console.warn(`Tentativo ${tentativo} fallito${scaduto ? ' (tempo scaduto)' : ''}:`, e);
+                    if (tentativo < 3) await new Promise(r => setTimeout(r, 1500 * tentativo));
+                }
             }
-            
-            const data = await response.json();
-            
-            if (!data.success) {
-                throw new Error('Upload ImgBB fallito');
-            }
-            
-            // Return the direct link to the image
-            return data.data.url;
+            throw ultimoErrore || new Error('Invio foto non riuscito');
             
         } catch (error) {
             console.error('Errore upload foto su ImgBB:', error);
@@ -1699,6 +1713,13 @@ try {
         const arrivoPhotoFile = document.getElementById('hobbs-arrivo-photo').files[0];
         
         errorMsg.textContent = '';
+        errorMsg.classList.remove('is-progress');
+
+        // Senza rete le foto non possono partire: meglio dirlo subito
+        if (!navigator.onLine && (partenzaPhotoFile || arrivoPhotoFile)) {
+            errorMsg.textContent = 'Sei offline: le foto non possono essere inviate. Salva i numeri ora e aggiungi le foto quando torni in copertura.';
+            return;
+        }
         
         // Check if user is authenticated
         if (!window.currentUser) {
@@ -1728,7 +1749,15 @@ try {
         }
         
         try {
-            errorMsg.textContent = 'Salvataggio in corso...';
+            // Blocca il pulsante: un secondo tocco farebbe partire un secondo invio
+            const btnSalva = document.getElementById('save-hobbs-button');
+            const etichettaOriginale = btnSalva ? btnSalva.textContent : 'Salva';
+            const avanzamento = (testo) => {
+                errorMsg.classList.add('is-progress');
+                errorMsg.textContent = testo;
+            };
+            if (btnSalva) { btnSalva.disabled = true; btnSalva.textContent = 'Salvataggio…'; }
+            avanzamento('Salvataggio in corso…');
             
             // First, verify the booking belongs to the current user
             const bookingDoc = await db.collection('bookings').doc(bookingId).get();
@@ -1750,13 +1779,25 @@ try {
             let partenzaPhotoURL = bookingData.hobbs_partenza_photo_url || null;
             let arrivoPhotoURL = bookingData.hobbs_arrivo_photo_url || null;
             
+            // Le due foto partono INSIEME invece che una dopo l'altra: dimezza l'attesa.
+            const erroriFoto = [];
+            const compiti = [];
             if (partenzaPhotoFile) {
-                partenzaPhotoURL = await uploadPhoto(partenzaPhotoFile, bookingId, 'partenza');
+                compiti.push(
+                    uploadPhoto(partenzaPhotoFile, bookingId, 'partenza', avanzamento)
+                        .then(url => { partenzaPhotoURL = url; })
+                        .catch(e => { erroriFoto.push('partenza'); console.error('Foto partenza:', e); })
+                );
             }
             
             if (arrivoPhotoFile) {
-                arrivoPhotoURL = await uploadPhoto(arrivoPhotoFile, bookingId, 'arrivo');
+                compiti.push(
+                    uploadPhoto(arrivoPhotoFile, bookingId, 'arrivo', avanzamento)
+                        .then(url => { arrivoPhotoURL = url; })
+                        .catch(e => { erroriFoto.push('arrivo'); console.error('Foto arrivo:', e); })
+                );
             }
+            if (compiti.length) await Promise.all(compiti);
             
             // Check for consecutive bookings
             const consecutiveBookings = await findConsecutiveBookings(bookingData);
@@ -1786,23 +1827,45 @@ try {
                 updateData.socio_id = reSel.value;
             }
             
-            // Update the current booking
-            await db.collection('bookings').doc(bookingId).update(updateData);
-            
-            // Update consecutive bookings if user agreed
+            avanzamento('Registro i dati…');
+
+            // Firestore mette la scrittura in coda quando manca la rete, ma la promessa
+            // si risolve SOLO quando il server conferma: senza questa scadenza il
+            // salvataggio resterebbe appeso all'infinito con poco campo.
+            const scritture = [db.collection('bookings').doc(bookingId).update(updateData)];
             if (applyToAll && consecutiveBookings.length > 0) {
-                const updatePromises = consecutiveBookings
+                consecutiveBookings
                     .filter(b => b.id !== bookingId)
-                    .map(b => db.collection('bookings').doc(b.id).update(updateData));
-                
-                await Promise.all(updatePromises);
+                    .forEach(b => scritture.push(db.collection('bookings').doc(b.id).update(updateData)));
             }
-            
+
+            let inCoda = false;
+            await Promise.race([
+                Promise.all(scritture),
+                new Promise(r => setTimeout(() => { inCoda = true; r(); }, 12000))
+            ]);
+
             dialog.style.display = 'none';
+            if (btnSalva) { btnSalva.disabled = false; btnSalva.textContent = etichettaOriginale; }
+            errorMsg.classList.remove('is-progress');
+            errorMsg.textContent = '';
+
+            if (erroriFoto.length) {
+                admToast(`Dati salvati, ma la foto di ${erroriFoto.join(' e ')} non è stata inviata: riprova più tardi.`);
+            } else if (inCoda) {
+                admToast('Dati registrati: verranno sincronizzati appena torna il segnale.');
+            } else {
+                admToast('Dati salvati.');
+            }
             renderMemberTotals();
         } catch (error) {
             console.error('Errore Hobbs:', error);
-            errorMsg.textContent = 'Errore nel salvataggio: ' + error.message;
+            const btn = document.getElementById('save-hobbs-button');
+            if (btn) { btn.disabled = false; btn.textContent = 'Salva'; }
+            errorMsg.classList.remove('is-progress');
+            errorMsg.textContent = (error && error.name === 'AbortError')
+                ? 'Connessione troppo lenta: riprova quando hai più campo.'
+                : 'Errore nel salvataggio: ' + (error.message || error);
         }
     };
     

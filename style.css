@@ -1668,3 +1668,9 @@ td.miss-arrivo, td.miss-partenza { color: #b45309; font-weight: 600; }
     border-radius: 5px; padding: 2px 8px; margin-top: 3px;
     display: inline-block; font-weight: 700;
 }
+
+/* Messaggio di avanzamento del salvataggio: non è un errore, non va in rosso */
+.error-message.is-progress {
+    color: var(--sky-mid);
+    font-weight: 600;
+}
